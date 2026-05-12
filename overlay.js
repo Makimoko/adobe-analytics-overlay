@@ -1,9 +1,9 @@
 /**
  * Adobe Analytics Overlay pour Darty.com - Version Légère
  * Affichage au hover uniquement + Switch on/off
- * Extraction de eVar71 depuis Link Name et patterns Darty
+ * Extraction de eVar71/v71 depuis Link Name et patterns tunnel panier
  * 
- * @version 2.4.0
+ * @version 2.5.0
  */
 
 (function() {
@@ -15,27 +15,75 @@
     }
 
     // ==========================================
-    // EXTRACTION eVar71 DEPUIS LINK NAME
+    // EXTRACTION eVar71/v71 DEPUIS PATTERNS
     // ==========================================
     
     function extractEVar71FromElement(element) {
         // 1. Chercher dans les attributs data-*
         const dataEvar71 = element.getAttribute('data-evar71') || 
-                          element.getAttribute('data-eVar71');
+                          element.getAttribute('data-eVar71') ||
+                          element.getAttribute('data-v71');
         if (dataEvar71) return dataEvar71;
         
-        // 2. Analyser le href pour les patterns Darty
+        // 2. Détecter le contexte (tunnel panier, espace client, etc.)
+        const currentUrl = window.location.pathname;
+        const isTunnelPanier = currentUrl.includes('/nav/transaction/panier') || 
+                               currentUrl.includes('/panier') ||
+                               document.querySelector('.tunnel-panier') !== null;
+        
+        // 3. Analyser le texte et les classes pour patterns spécifiques
+        const text = element.textContent?.trim().toLowerCase();
+        const classList = Array.from(element.classList || []).join(' ').toLowerCase();
+        
+        // TUNNEL PANIER - Patterns spécifiques
+        if (isTunnelPanier) {
+            // Bouton Supprimer
+            if (text.includes('supprimer') || classList.includes('supprimer') || classList.includes('delete') || classList.includes('remove')) {
+                return 'basket_supprimer-du-panier';
+            }
+            
+            // Bouton Commander / Valider le panier
+            if (text.includes('commander') || text.includes('valider') || classList.includes('validate') || classList.includes('submit')) {
+                return 'basket_valider-panier';
+            }
+            
+            // Modifier la quantité
+            if (classList.includes('quantity') || text === '+' || text === '-') {
+                return 'basket_modifier-quantite';
+            }
+            
+            // Continuer mes achats
+            if (text.includes('continuer') && text.includes('achat')) {
+                return 'basket_continuer-achats';
+            }
+            
+            // Code promo
+            if (text.includes('code') || text.includes('promo') || classList.includes('promo')) {
+                return 'basket_code-promo';
+            }
+            
+            // Livraison
+            if (text.includes('livraison') || classList.includes('delivery')) {
+                return 'basket_choix-livraison';
+            }
+            
+            // Retrait en magasin
+            if (text.includes('retrait') && text.includes('magasin')) {
+                return 'basket_retrait-magasin';
+            }
+        }
+        
+        // ESPACE CLIENT - Patterns
         const href = element.getAttribute('href') || '';
         if (href) {
             // Pattern espace client : /espace_client/XXX
             const espaceClientMatch = href.match(/\/espace_client\/([^/?#]+)/);
             if (espaceClientMatch) {
                 const page = espaceClientMatch[1];
-                // Construire le link name selon la logique Darty
                 return 'ec_menu_profil_' + page.replace(/_/g, '-');
             }
             
-            // Pattern general : convertir le path en link name
+            // Pattern général : convertir le path
             const pathMatch = href.match(/^\/([^/?#]+)/);
             if (pathMatch && href !== '/' && !href.startsWith('http')) {
                 const section = pathMatch[1];
@@ -43,15 +91,11 @@
             }
         }
         
-        // 3. Analyser le texte et la classe pour deviner le link name
-        const text = element.textContent?.trim().toLowerCase();
-        const classList = Array.from(element.classList || []).join(' ');
-        
-        // Patterns espace client
+        // 4. Analyse du texte pour espace client
         if (text && (href.includes('espace_client') || classList.includes('profil'))) {
             const textSlug = text
                 .normalize('NFD')
-                .replace(/[\u0300-\u036f]/g, '') // Retirer accents
+                .replace(/[\u0300-\u036f]/g, '')
                 .replace(/[^a-z0-9\s-]/g, '')
                 .replace(/\s+/g, '-')
                 .replace(/-+/g, '-')
@@ -62,17 +106,44 @@
             }
         }
         
-        // 4. Chercher dans onclick pour patterns de link name
+        // 5. Chercher dans onclick
         const onclick = element.getAttribute('onclick') || '';
         const linkNameMatch = onclick.match(/linkName\s*[=:]\s*['"]([^'"]+)['"]/);
         if (linkNameMatch) {
             return linkNameMatch[1];
         }
         
-        // 5. ID de l'élément comme fallback
-        const id = element.getAttribute('id');
-        if (id && (id.includes('link') || id.includes('menu') || id.includes('btn'))) {
-            return id.replace(/_/g, '-');
+        const v71Match = onclick.match(/v71\s*[=:]\s*['"]([^'"]+)['"]/);
+        if (v71Match) {
+            return v71Match[1];
+        }
+        
+        const eVar71Match = onclick.match(/eVar71\s*[=:]\s*['"]([^'"]+)['"]/);
+        if (eVar71Match) {
+            return eVar71Match[1];
+        }
+        
+        // 6. Patterns génériques par texte
+        if (text) {
+            // Boutons de formulaire
+            if (text === 'valider' || text === 'envoyer' || text === 'confirmer') {
+                return 'form_' + text;
+            }
+            
+            // Liens de navigation
+            if (element.tagName === 'A' && text.length > 2 && text.length < 40) {
+                const slug = text
+                    .normalize('NFD')
+                    .replace(/[\u0300-\u036f]/g, '')
+                    .replace(/[^a-z0-9\s-]/g, '')
+                    .replace(/\s+/g, '-')
+                    .replace(/-+/g, '-')
+                    .trim();
+                
+                if (slug && slug !== '') {
+                    return 'link_' + slug;
+                }
+            }
         }
         
         return null;
@@ -94,6 +165,9 @@
             if (window.s && window.s.eVar71) {
                 eventData.eVar71 = window.s.eVar71;
             }
+            if (window.s && window.s.prop71) {
+                eventData.v71 = window.s.prop71;
+            }
             if (window.tc_vars && window.tc_vars.event_id) {
                 eventData.event_id = window.tc_vars.event_id;
             }
@@ -105,7 +179,7 @@
     }
 
     // ==========================================
-    // STYLES CSS LÉGERS
+    // STYLES CSS
     // ==========================================
     const styles = `
         .aa-tracked-element {
@@ -310,54 +384,68 @@
             if (eventIdMatch) data['event_id'] = eventIdMatch[1];
         }
         
-        // 3. Extraire eVar71 (NOUVELLE LOGIQUE)
-        let eVar71Value = null;
-        let eVar71Source = null;
+        // 3. Extraire v71/eVar71
+        let v71Value = null;
+        let v71Source = null;
         
         // 3a. Depuis window.s
         if (window.s && window.s.eVar71) {
-            eVar71Value = window.s.eVar71;
-            eVar71Source = 'window.s';
+            v71Value = window.s.eVar71;
+            v71Source = 'window.s';
+        } else if (window.s && window.s.prop71) {
+            v71Value = window.s.prop71;
+            v71Source = 'window.s';
         }
         
         // 3b. Depuis le cache de clic
-        if (clickDataCache.has(element)) {
+        if (!v71Value && clickDataCache.has(element)) {
             const cachedData = clickDataCache.get(element);
-            if (Date.now() - cachedData.timestamp < 60000 && cachedData.eVar71) {
-                eVar71Value = cachedData.eVar71;
-                eVar71Source = 'cache';
+            if (Date.now() - cachedData.timestamp < 60000) {
+                if (cachedData.eVar71) {
+                    v71Value = cachedData.eVar71;
+                    v71Source = 'cache';
+                } else if (cachedData.v71) {
+                    v71Value = cachedData.v71;
+                    v71Source = 'cache';
+                }
             }
         }
         
         // 3c. Depuis onclick
-        if (!eVar71Value && onclick) {
-            const eVar71Match = onclick.match(/eVar71\s*[=:]\s*['"]([^'"]+)['"]/);
-            if (eVar71Match) {
-                eVar71Value = eVar71Match[1];
-                eVar71Source = 'onclick';
+        if (!v71Value && onclick) {
+            const v71Match = onclick.match(/v71\s*[=:]\s*['"]([^'"]+)['"]/);
+            if (v71Match) {
+                v71Value = v71Match[1];
+                v71Source = 'onclick';
+            } else {
+                const eVar71Match = onclick.match(/eVar71\s*[=:]\s*['"]([^'"]+)['"]/);
+                if (eVar71Match) {
+                    v71Value = eVar71Match[1];
+                    v71Source = 'onclick';
+                }
             }
         }
         
-        // 3d. Extraction depuis Link Name (OPTION 4)
-        if (!eVar71Value) {
+        // 3d. Extraction depuis patterns (tunnel panier, espace client, etc.)
+        if (!v71Value) {
             const extracted = extractEVar71FromElement(element);
             if (extracted) {
-                eVar71Value = extracted;
-                eVar71Source = 'computed';
+                v71Value = extracted;
+                v71Source = 'computed';
             }
         }
         
-        // Ajouter eVar71 avec le bon label
-        if (eVar71Value) {
+        // Ajouter v71/eVar71 avec le bon label
+        if (v71Value) {
             if (isAddToCart) {
-                data['eVar71 (v71)'] = eVar71Value;
+                data['v71'] = v71Value;
             } else {
-                data['eVar71'] = eVar71Value;
+                data['v71'] = v71Value;
             }
             
             // Indiquer si c'est une valeur calculée
-            if (eVar71Source === 'computed') {
-                data['eVar71'] = eVar71Value + ' (estimé)';
+            if (v71Source === 'computed') {
+                data['v71'] = v71Value + ' (estime)';
             }
         }
         
@@ -367,11 +455,7 @@
             const attrValue = attr.value;
             
             if (attrName === 'data-tracking-event' && attrValue) {
-                if (isAddToCart) {
-                    data['event_id (v71)'] = attrValue;
-                } else {
-                    data['event_id'] = attrValue;
-                }
+                data['event_id'] = attrValue;
             }
             
             if (attrName === 'data-tracking-name' && attrValue) {
@@ -430,10 +514,8 @@
             content += '</div>';
         } else {
             const priorityKeys = [
-                'Type', 
-                'eVar71 (v71)',
-                'eVar71',
-                'event_id (v71)', 
+                'Type',
+                'v71',
                 'event_id',
                 'Clic', 
                 'tracking_name (v48)',
@@ -450,7 +532,7 @@
                     content += '<div class="aa-overlay-item">';
                     content += `<span class="aa-overlay-key">${key}:</span>`;
                     
-                    const valueClass = data[key].includes('(estimé)') ? 'aa-overlay-value aa-overlay-computed' : 'aa-overlay-value';
+                    const valueClass = data[key].includes('(estime)') ? 'aa-overlay-value aa-overlay-computed' : 'aa-overlay-value';
                     content += `<span class="${valueClass}">${data[key]}</span>`;
                     content += '</div>';
                     count++;
@@ -525,13 +607,14 @@
             clickDataCache.set(element, window._lastAdobeTrackData);
         }
         
-        if (window.s && window.s.eVar71) {
+        if (window.s) {
             const existingCache = clickDataCache.get(element) || {};
-            clickDataCache.set(element, {
-                ...existingCache,
-                eVar71: window.s.eVar71,
-                timestamp: Date.now()
-            });
+            const newCache = { ...existingCache, timestamp: Date.now() };
+            
+            if (window.s.eVar71) newCache.eVar71 = window.s.eVar71;
+            if (window.s.prop71) newCache.v71 = window.s.prop71;
+            
+            clickDataCache.set(element, newCache);
         }
     }
 
@@ -555,6 +638,9 @@
             '[role="button"]',
             '.cta',
             '[class*="btn"]',
+            '[class*="supprimer"]',
+            '[class*="delete"]',
+            '[class*="remove"]',
             'nav a'
         ];
 
@@ -564,7 +650,7 @@
             if (trackedElements.has(element)) return;
             
             const data = getTrackingData(element);
-            const hasData = Object.keys(data).length > 1 || data['event_id'] || data['event_id (v71)'] || data['eVar71'];
+            const hasData = Object.keys(data).length > 1 || data['event_id'] || data['v71'];
             
             if (hasData) {
                 element.classList.add('aa-tracked-element');

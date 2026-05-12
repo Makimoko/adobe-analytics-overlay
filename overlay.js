@@ -2,7 +2,7 @@
  * Adobe Analytics Overlay pour Darty.com
  * Version optimisée avec interception Launch et API
  * 
- * @version 4.0.0
+ * @version 4.1.0
  */
 
 (function() {
@@ -36,7 +36,6 @@
                     ...(data || {})
                 };
                 
-                // Récupérer tc_vars au moment du track
                 if (window.tc_vars) {
                     if (window.tc_vars.event_id) trackData.event_id = window.tc_vars.event_id;
                     if (window.tc_vars.page_pagename) trackData.page = window.tc_vars.page_pagename;
@@ -106,7 +105,6 @@
         return originalXHROpen.call(this, method, url, ...rest);
     };
 
-    // Capturer le clic
     document.addEventListener('click', (e) => {
         lastClickTarget = e.target.closest('a, button, [role="button"], [onclick]');
     }, true);
@@ -145,7 +143,11 @@
     // ==========================================
     function getData(el) {
         const d = {};
-        const isCart = el.hasAttribute('data-basket-add') || el.hasAttribute('data-basket-add-area') || el.closest('[data-basket-add]');
+        
+        // Détecter Add to Cart
+        const isCart = el.hasAttribute('data-basket-add') || 
+                      el.hasAttribute('data-basket-add-area') || 
+                      el.closest('[data-basket-add]');
         
         // Tag Commander
         if (window.tc_vars?.page_pagename) d.Page = window.tc_vars.page_pagename;
@@ -169,23 +171,49 @@
         // Cache Launch/API
         const cached = elementCache.get(el);
         if (cached && Date.now() - cached.timestamp < 120000) {
-            if (cached.v71) d.v71 = cached.v71;
-            if (cached.api_page) d.API_page = cached.api_page;
-            if (cached.event_id) d.event_id = cached.event_id;
+            if (cached.v71) {
+                d.v71 = cached.v71;
+            }
+            if (cached.api_page) {
+                d.API_page = cached.api_page;
+            }
+            if (cached.event_id) {
+                if (isCart) {
+                    d['event_id (v71)'] = cached.event_id;
+                } else {
+                    d.event_id = cached.event_id;
+                }
+            }
         }
         
         // Attributs data-*
         for (const {name, value} of el.attributes) {
-            if (name === 'data-tracking-event') d.event_id = value;
-            else if (name === 'data-tracking-name') d[isCart ? 'tracking_name (v48)' : 'tracking_name'] = value;
-            else if (name === 'data-basket-add-area') d.v48 = value;
-            else if (name === 'data-tracking-click') d.tracking_click = value;
+            if (name === 'data-tracking-event') {
+                if (isCart) {
+                    d['event_id (v71)'] = value;
+                } else {
+                    d.event_id = value;
+                }
+            } else if (name === 'data-tracking-name') {
+                if (isCart) {
+                    d['tracking_name (v48)'] = value;
+                } else {
+                    d.tracking_name = value;
+                }
+            } else if (name === 'data-basket-add-area') {
+                d.v48 = value;
+            } else if (name === 'data-tracking-click') {
+                d.tracking_click = value;
+            }
         }
         
         // Libellé
         const txt = el.textContent?.trim();
-        if (txt && txt.length < 80) d.Libelle = txt.substring(0, 50);
-        else if (el.getAttribute('aria-label')) d.Libelle = el.getAttribute('aria-label');
+        if (txt && txt.length < 80) {
+            d.Libelle = txt.substring(0, 50);
+        } else if (el.getAttribute('aria-label')) {
+            d.Libelle = el.getAttribute('aria-label');
+        }
         
         return d;
     }
@@ -201,7 +229,21 @@
     }
 
     function updateBadge(badge, el, data) {
-        const keys = ['Type', 'v71', 'event_id', 'API_page', 'Clic', 'tracking_name (v48)', 'v48', 'tracking_name', 'Libelle', 'Page'];
+        const keys = [
+            'Type', 
+            'v71', 
+            'event_id (v71)', 
+            'event_id', 
+            'API_page', 
+            'Clic', 
+            'tracking_name (v48)', 
+            'v48', 
+            'tracking_name', 
+            'tracking_click',
+            'Libelle', 
+            'Page'
+        ];
+        
         let html = '<div class="aa-badge-title">Analytics Data</div>';
         
         if (Object.keys(data).length === 0) {
@@ -209,7 +251,7 @@
         } else {
             let count = 0;
             for (const k of keys) {
-                if (data[k] && count < 6) {
+                if (data[k] && count < 7) {
                     html += `<div class="aa-badge-item"><span class="aa-badge-key">${k}:</span><span class="aa-badge-val">${data[k]}</span></div>`;
                     count++;
                 }
@@ -265,6 +307,7 @@
             '[data-track]',
             '[data-tracking-event]',
             '[data-tracking-name]',
+            '[data-tracking-click]',
             '[data-basket-add]',
             '[data-basket-add-area]',
             'button',

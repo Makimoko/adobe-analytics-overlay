@@ -2,7 +2,7 @@
  * Adobe Analytics Overlay pour Darty.com - Version Légère
  * Affichage au hover uniquement + Switch on/off
  * 
- * @version 2.1.0
+ * @version 2.2.0
  */
 
 (function() {
@@ -185,6 +185,11 @@
     function getTrackingData(element) {
         const data = {};
         
+        // Détecter si c'est un bouton "Ajouter au panier"
+        const isAddToCart = element.hasAttribute('data-basket-add') || 
+                           element.hasAttribute('data-basket-add-area') ||
+                           element.closest('[data-basket-add]') !== null;
+        
         // 1. Tag Commander
         if (window.tc_vars?.page_pagename) {
             data['Page'] = window.tc_vars.page_pagename;
@@ -210,19 +215,32 @@
             if (eventIdMatch) data['event_id'] = eventIdMatch[1];
         }
         
-        // 3. Attributs data-* (IMPORTANT: extraction de event_id)
+        // 3. Attributs data-*
         Array.from(element.attributes).forEach(attr => {
             const attrName = attr.name;
             const attrValue = attr.value;
             
             // Extraire event_id depuis data-tracking-event
             if (attrName === 'data-tracking-event' && attrValue) {
-                data['event_id'] = attrValue;
+                if (isAddToCart) {
+                    data['event_id (v71)'] = attrValue;
+                } else {
+                    data['event_id'] = attrValue;
+                }
             }
             
             // Extraire data-tracking-name
             if (attrName === 'data-tracking-name' && attrValue) {
-                data['tracking_name'] = attrValue;
+                if (isAddToCart) {
+                    data['tracking_name (v48)'] = attrValue;
+                } else {
+                    data['tracking_name'] = attrValue;
+                }
+            }
+            
+            // Extraire data-basket-add-area pour add to cart
+            if (attrName === 'data-basket-add-area' && attrValue) {
+                data['v48'] = attrValue;
             }
             
             // Extraire data-tracking-click
@@ -235,7 +253,7 @@
                 attrName.startsWith('data-event') ||
                 attrName.startsWith('data-analytics')) {
                 const key = attrName.replace('data-', '').replace(/-/g, '_');
-                if (!data[key]) {
+                if (!data[key] && key !== 'tracking_event' && key !== 'tracking_name' && key !== 'basket_add_area') {
                     data[key] = attrValue;
                 }
             }
@@ -270,11 +288,23 @@
             content += '<span class="aa-overlay-value" style="opacity:0.6;">Aucune donnee</span>';
             content += '</div>';
         } else {
-            const priorityKeys = ['Type', 'event_id', 'Clic', 'tracking_name', 'tracking_click', 'Libelle', 'Page'];
+            // Ordre de priorité spécial pour add to cart
+            const priorityKeys = [
+                'Type', 
+                'event_id (v71)', 
+                'event_id',
+                'Clic', 
+                'tracking_name (v48)',
+                'v48',
+                'tracking_name', 
+                'tracking_click', 
+                'Libelle', 
+                'Page'
+            ];
             let count = 0;
             
             priorityKeys.forEach(key => {
-                if (data[key] && count < 5) {
+                if (data[key] && count < 6) {
                     content += '<div class="aa-overlay-item">';
                     content += `<span class="aa-overlay-key">${key}:</span>`;
                     content += `<span class="aa-overlay-value">${data[key]}</span>`;
@@ -285,7 +315,7 @@
             
             // Autres clés
             for (const [key, value] of Object.entries(data)) {
-                if (!priorityKeys.includes(key) && count < 5) {
+                if (!priorityKeys.includes(key) && count < 6) {
                     content += '<div class="aa-overlay-item">';
                     content += `<span class="aa-overlay-key">${key}:</span>`;
                     content += `<span class="aa-overlay-value">${value}</span>`;
@@ -357,6 +387,8 @@
             '[data-tracking-event]',
             '[data-tracking-name]',
             '[data-tracking-click]',
+            '[data-basket-add]',
+            '[data-basket-add-area]',
             '[data-event]',
             '[data-analytics]',
             'button',
@@ -373,7 +405,7 @@
             if (trackedElements.has(element)) return;
             
             const data = getTrackingData(element);
-            const hasData = Object.keys(data).length > 1 || data['event_id'];
+            const hasData = Object.keys(data).length > 1 || data['event_id'] || data['event_id (v71)'];
             
             if (hasData) {
                 element.classList.add('aa-tracked-element');

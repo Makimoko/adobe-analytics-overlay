@@ -1,9 +1,9 @@
 /**
  * Adobe Analytics Overlay pour Darty.com - Version Légère
  * Affichage au hover uniquement + Switch on/off
- * Interception des appels Adobe Analytics pour récupération des eVars dynamiques
+ * Extraction de eVar71 depuis Link Name et patterns Darty
  * 
- * @version 2.3.0
+ * @version 2.4.0
  */
 
 (function() {
@@ -15,21 +15,82 @@
     }
 
     // ==========================================
+    // EXTRACTION eVar71 DEPUIS LINK NAME
+    // ==========================================
+    
+    function extractEVar71FromElement(element) {
+        // 1. Chercher dans les attributs data-*
+        const dataEvar71 = element.getAttribute('data-evar71') || 
+                          element.getAttribute('data-eVar71');
+        if (dataEvar71) return dataEvar71;
+        
+        // 2. Analyser le href pour les patterns Darty
+        const href = element.getAttribute('href') || '';
+        if (href) {
+            // Pattern espace client : /espace_client/XXX
+            const espaceClientMatch = href.match(/\/espace_client\/([^/?#]+)/);
+            if (espaceClientMatch) {
+                const page = espaceClientMatch[1];
+                // Construire le link name selon la logique Darty
+                return 'ec_menu_profil_' + page.replace(/_/g, '-');
+            }
+            
+            // Pattern general : convertir le path en link name
+            const pathMatch = href.match(/^\/([^/?#]+)/);
+            if (pathMatch && href !== '/' && !href.startsWith('http')) {
+                const section = pathMatch[1];
+                return section.replace(/_/g, '-');
+            }
+        }
+        
+        // 3. Analyser le texte et la classe pour deviner le link name
+        const text = element.textContent?.trim().toLowerCase();
+        const classList = Array.from(element.classList || []).join(' ');
+        
+        // Patterns espace client
+        if (text && (href.includes('espace_client') || classList.includes('profil'))) {
+            const textSlug = text
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '') // Retirer accents
+                .replace(/[^a-z0-9\s-]/g, '')
+                .replace(/\s+/g, '-')
+                .replace(/-+/g, '-')
+                .trim();
+            
+            if (textSlug) {
+                return 'ec_menu_profil_' + textSlug;
+            }
+        }
+        
+        // 4. Chercher dans onclick pour patterns de link name
+        const onclick = element.getAttribute('onclick') || '';
+        const linkNameMatch = onclick.match(/linkName\s*[=:]\s*['"]([^'"]+)['"]/);
+        if (linkNameMatch) {
+            return linkNameMatch[1];
+        }
+        
+        // 5. ID de l'élément comme fallback
+        const id = element.getAttribute('id');
+        if (id && (id.includes('link') || id.includes('menu') || id.includes('btn'))) {
+            return id.replace(/_/g, '-');
+        }
+        
+        return null;
+    }
+
+    // ==========================================
     // INTERCEPTION ADOBE ANALYTICS
     // ==========================================
     const clickDataCache = new WeakMap();
     
-    // Intercepter _satellite.track
     if (window._satellite && window._satellite.track) {
         const originalTrack = window._satellite.track;
         window._satellite.track = function(eventName) {
-            // Capturer les données au moment du track
             const eventData = {
                 eventName: eventName,
                 timestamp: Date.now()
             };
             
-            // Récupérer eVar71 si présent dans s ou tc_vars
             if (window.s && window.s.eVar71) {
                 eventData.eVar71 = window.s.eVar71;
             }
@@ -37,10 +98,8 @@
                 eventData.event_id = window.tc_vars.event_id;
             }
             
-            // Stocker temporairement pour association avec l'élément
             window._lastAdobeTrackData = eventData;
             
-            // Appeler la fonction originale
             return originalTrack.apply(this, arguments);
         };
     }
@@ -114,6 +173,11 @@
             color: #FFFFFF !important;
             word-break: break-word !important;
             opacity: 0.95 !important;
+        }
+        
+        .aa-overlay-computed {
+            opacity: 0.7 !important;
+            font-style: italic !important;
         }
         
         .aa-switch-container {
@@ -217,7 +281,6 @@
     function getTrackingData(element) {
         const data = {};
         
-        // Détecter si c'est un bouton "Ajouter au panier"
         const isAddToCart = element.hasAttribute('data-basket-add') || 
                            element.hasAttribute('data-basket-add-area') ||
                            element.closest('[data-basket-add]') !== null;
@@ -247,57 +310,62 @@
             if (eventIdMatch) data['event_id'] = eventIdMatch[1];
         }
         
-        // 3. Récupérer depuis l'objet Adobe Analytics (window.s)
-        if (window.s) {
-            // eVar71 si disponible
-            if (window.s.eVar71) {
-                if (isAddToCart) {
-                    data['eVar71 (v71)'] = window.s.eVar71;
-                } else {
-                    data['eVar71'] = window.s.eVar71;
-                }
-            }
-            
-            // linkTrackVars peut indiquer quelles variables sont trackées
-            if (window.s.linkTrackVars && window.s.linkTrackVars.includes('eVar71')) {
-                // eVar71 est configuré pour être tracké
-                if (!data['eVar71'] && !data['eVar71 (v71)']) {
-                    // Essayer de le récupérer depuis les data elements Launch
-                    if (window._satellite && typeof window._satellite.getVar === 'function') {
-                        try {
-                            const eVar71Value = window._satellite.getVar('eVar71');
-                            if (eVar71Value) {
-                                if (isAddToCart) {
-                                    data['eVar71 (v71)'] = eVar71Value;
-                                } else {
-                                    data['eVar71'] = eVar71Value;
-                                }
-                            }
-                        } catch (e) {}
-                    }
-                }
+        // 3. Extraire eVar71 (NOUVELLE LOGIQUE)
+        let eVar71Value = null;
+        let eVar71Source = null;
+        
+        // 3a. Depuis window.s
+        if (window.s && window.s.eVar71) {
+            eVar71Value = window.s.eVar71;
+            eVar71Source = 'window.s';
+        }
+        
+        // 3b. Depuis le cache de clic
+        if (clickDataCache.has(element)) {
+            const cachedData = clickDataCache.get(element);
+            if (Date.now() - cachedData.timestamp < 60000 && cachedData.eVar71) {
+                eVar71Value = cachedData.eVar71;
+                eVar71Source = 'cache';
             }
         }
         
-        // 4. Récupérer les données cachées dans onclick
-        if (onclick) {
-            // Chercher eVar71 dans le onclick
+        // 3c. Depuis onclick
+        if (!eVar71Value && onclick) {
             const eVar71Match = onclick.match(/eVar71\s*[=:]\s*['"]([^'"]+)['"]/);
             if (eVar71Match) {
-                if (isAddToCart) {
-                    data['eVar71 (v71)'] = eVar71Match[1];
-                } else {
-                    data['eVar71'] = eVar71Match[1];
-                }
+                eVar71Value = eVar71Match[1];
+                eVar71Source = 'onclick';
             }
         }
         
-        // 5. Attributs data-*
+        // 3d. Extraction depuis Link Name (OPTION 4)
+        if (!eVar71Value) {
+            const extracted = extractEVar71FromElement(element);
+            if (extracted) {
+                eVar71Value = extracted;
+                eVar71Source = 'computed';
+            }
+        }
+        
+        // Ajouter eVar71 avec le bon label
+        if (eVar71Value) {
+            if (isAddToCart) {
+                data['eVar71 (v71)'] = eVar71Value;
+            } else {
+                data['eVar71'] = eVar71Value;
+            }
+            
+            // Indiquer si c'est une valeur calculée
+            if (eVar71Source === 'computed') {
+                data['eVar71'] = eVar71Value + ' (estimé)';
+            }
+        }
+        
+        // 4. Attributs data-*
         Array.from(element.attributes).forEach(attr => {
             const attrName = attr.name;
             const attrValue = attr.value;
             
-            // Extraire event_id depuis data-tracking-event
             if (attrName === 'data-tracking-event' && attrValue) {
                 if (isAddToCart) {
                     data['event_id (v71)'] = attrValue;
@@ -306,7 +374,6 @@
                 }
             }
             
-            // Extraire data-tracking-name
             if (attrName === 'data-tracking-name' && attrValue) {
                 if (isAddToCart) {
                     data['tracking_name (v48)'] = attrValue;
@@ -315,26 +382,14 @@
                 }
             }
             
-            // Extraire data-basket-add-area pour add to cart
             if (attrName === 'data-basket-add-area' && attrValue) {
                 data['v48'] = attrValue;
             }
             
-            // Extraire data-tracking-click
             if (attrName === 'data-tracking-click' && attrValue) {
                 data['tracking_click'] = attrValue;
             }
             
-            // Chercher data-evar71 ou data-eVar71
-            if ((attrName === 'data-evar71' || attrName === 'data-eVar71') && attrValue) {
-                if (isAddToCart) {
-                    data['eVar71 (v71)'] = attrValue;
-                } else {
-                    data['eVar71'] = attrValue;
-                }
-            }
-            
-            // Autres attributs de tracking
             if (attrName.startsWith('data-track') || 
                 attrName.startsWith('data-event') ||
                 attrName.startsWith('data-analytics')) {
@@ -345,24 +400,7 @@
             }
         });
         
-        // 6. Récupérer depuis le cache de clic (si l'élément a été cliqué récemment)
-        if (clickDataCache.has(element)) {
-            const cachedData = clickDataCache.get(element);
-            if (Date.now() - cachedData.timestamp < 60000) { // Cache de 60s
-                if (cachedData.eVar71) {
-                    if (isAddToCart) {
-                        data['eVar71 (v71)'] = cachedData.eVar71;
-                    } else {
-                        data['eVar71'] = cachedData.eVar71;
-                    }
-                }
-                if (cachedData.event_id && !data['event_id']) {
-                    data['event_id'] = cachedData.event_id;
-                }
-            }
-        }
-        
-        // 7. Libellé
+        // 5. Libellé
         const text = element.textContent?.trim();
         if (text && text.length > 0 && text.length < 80) {
             data['Libelle'] = text.substring(0, 50);
@@ -374,7 +412,7 @@
     }
 
     // ==========================================
-    // CRÉATION DU BADGE (unique, réutilisé)
+    // CRÉATION DU BADGE
     // ==========================================
     function createBadge() {
         const badge = document.createElement('div');
@@ -391,7 +429,6 @@
             content += '<span class="aa-overlay-value" style="opacity:0.6;">Aucune donnee</span>';
             content += '</div>';
         } else {
-            // Ordre de priorité
             const priorityKeys = [
                 'Type', 
                 'eVar71 (v71)',
@@ -412,13 +449,14 @@
                 if (data[key] && count < 6) {
                     content += '<div class="aa-overlay-item">';
                     content += `<span class="aa-overlay-key">${key}:</span>`;
-                    content += `<span class="aa-overlay-value">${data[key]}</span>`;
+                    
+                    const valueClass = data[key].includes('(estimé)') ? 'aa-overlay-value aa-overlay-computed' : 'aa-overlay-value';
+                    content += `<span class="${valueClass}">${data[key]}</span>`;
                     content += '</div>';
                     count++;
                 }
             });
             
-            // Autres clés
             for (const [key, value] of Object.entries(data)) {
                 if (!priorityKeys.includes(key) && count < 6) {
                     content += '<div class="aa-overlay-item">';
@@ -440,7 +478,6 @@
         let top = rect.bottom + 12;
         let left = rect.left;
         
-        // Éviter sortie d'écran
         if (left + badgeRect.width > window.innerWidth - 20) {
             left = window.innerWidth - badgeRect.width - 20;
         }
@@ -481,18 +518,13 @@
         }
     }
 
-    // ==========================================
-    // INTERCEPTER LES CLICS POUR CACHER LES DONNÉES
-    // ==========================================
     function handleClick(event) {
         const element = event.currentTarget;
         
-        // Capturer les données Adobe Analytics au moment du clic
         if (window._lastAdobeTrackData) {
             clickDataCache.set(element, window._lastAdobeTrackData);
         }
         
-        // Capturer depuis window.s si disponible
         if (window.s && window.s.eVar71) {
             const existingCache = clickDataCache.get(element) || {};
             clickDataCache.set(element, {
@@ -537,7 +569,6 @@
             if (hasData) {
                 element.classList.add('aa-tracked-element');
                 
-                // Classe spéciale selon le type
                 if (data['Type']?.includes('dartyclic')) {
                     element.classList.add('aa-dartyclic');
                 } else if (data['Type']?.includes('interaction')) {
@@ -548,7 +579,7 @@
                 
                 element.addEventListener('mouseenter', handleMouseEnter);
                 element.addEventListener('mouseleave', handleMouseLeave);
-                element.addEventListener('click', handleClick, true); // Capture phase
+                element.addEventListener('click', handleClick, true);
             }
         });
         
@@ -614,11 +645,9 @@
         scanElements();
     }
 
-    // Observer DOM
     const observer = new MutationObserver(() => scanElements());
     observer.observe(document.body, { childList: true, subtree: true });
 
-    // Repositionner au scroll
     let scrollTimeout;
     window.addEventListener('scroll', () => {
         if (currentBadge && currentBadge.classList.contains('visible')) {
@@ -632,7 +661,6 @@
         }
     }, { passive: true });
 
-    // API
     window.AdobeAnalyticsOverlay = {
         toggle,
         scan: scanElements,

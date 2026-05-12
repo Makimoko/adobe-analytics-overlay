@@ -300,22 +300,21 @@
 
     <div class="container">
         <div class="bookmarklet-section">
-            <h2 style="color: #00D9FF; margin-bottom: 16px;">📌 Installation du Bookmarklet</h2>
+            <h2 style="color: #00D9FF; margin-bottom: 16px;"> Installation du Bookmarklet</h2>
             <p style="color: #AAA; margin-bottom: 24px;">
-                Faites glisser ce bouton dans votre barre de favoris, ou cliquez-droit → "Ajouter aux favoris"
+                Faites glisser ce bouton dans votre barre de favoris, ou cliquez-droit => "Ajouter aux favoris"
             </p>
             <a href="javascript:(function(){const e=document.createElement('script');e.src='https://VOTRE-USERNAME.github.io/adobe-analytics-overlay/overlay.js?v='+Date.now();document.body.appendChild(e);})();" class="bookmarklet-link">
-                🔍 Adobe Analytics Overlay
+                 Adobe Analytics Overlay
             </a>
             <div class="instruction-box" style="text-align: left; margin-top: 30px;">
-                <strong>⚠️ Important :</strong>
+                <strong> Important :</strong>
                 Remplacez <code style="background: rgba(0,217,255,0.1); padding: 2px 6px; border-radius: 4px; color: #00D9FF;">VOTRE-USERNAME</code> par votre nom d'utilisateur GitHub dans le code du bookmarklet
             </div>
         </div>
 
         <div class="grid">
             <div class="card">
-                <div class="card-icon">🔗</div>
                 <div class="card-title">dartyclic</div>
                 <div class="card-desc">
                     Détecte automatiquement les liens avec ancre <code>#dartyclic=nom_du_clic</code>
@@ -326,7 +325,7 @@
             </div>
 
             <div class="card">
-                <div class="card-icon">⚡</div>
+                
                 <div class="card-title">satellite.track('clic')</div>
                 <div class="card-desc">
                     Capture les clics avec <code>_satellite.track('clic')</code> et extrait l'event_id
@@ -337,7 +336,7 @@
             </div>
 
             <div class="card">
-                <div class="card-icon">🎯</div>
+                
                 <div class="card-title">satellite.track('interaction')</div>
                 <div class="card-desc">
                     Identifie les interactions contextualisées avec données produit
@@ -348,7 +347,7 @@
             </div>
 
             <div class="card">
-                <div class="card-icon">📊</div>
+                
                 <div class="card-title">Tag Commander</div>
                 <div class="card-desc">
                     Accède aux variables <code>tc_vars</code> : page_pagename, env_template, product_category1, etc.
@@ -356,7 +355,7 @@
             </div>
 
             <div class="card">
-                <div class="card-icon">🎨</div>
+                
                 <div class="card-title">Overlay visuel</div>
                 <div class="card-desc">
                     Encarts flottants avec les 4-5 valeurs clés : Type, Clic, event_id, Libellé, Page
@@ -364,7 +363,7 @@
             </div>
 
             <div class="card">
-                <div class="card-icon">⚡</div>
+                
                 <div class="card-title">Performance</div>
                 <div class="card-desc">
                     Détection automatique au chargement et sur les mises à jour DOM (SPA/AJAX)
@@ -373,7 +372,7 @@
         </div>
 
         <div class="demo-section">
-            <h2>🧪 Exemples de détection</h2>
+            <h2>Exemples de détection</h2>
             <p style="color: #AAA; margin-bottom: 24px;">
                 Testez le bookmarklet sur ces éléments (simulés pour la démo)
             </p>
@@ -381,20 +380,20 @@
             <div class="demo-elements">
                 <div>
                     <a href="/produit#dartyclic=voir_produit" class="demo-link" data-track="product-view">
-                        🔗 Lien dartyclic : Voir le produit
+                        Lien dartyclic : Voir le produit
                     </a>
                     <div style="color: #666; font-size: 0.9rem; margin-top: 8px; font-family: monospace;">
-                        → Détectera : Type: dartyclic, Clic: voir_produit
+                        => Détectera : Type: dartyclic, Clic: voir_produit
                     </div>
                 </div>
 
                 <div>
                     <button class="demo-btn demo-btn-primary" 
                             onclick="window.tc_vars={event_id:'open_menu'}; alert('Simulation: _satellite.track(clic)');">
-                        ⚡ Bouton satellite.track('clic')
+                         Bouton satellite.track('clic')
                     </button>
                     <div style="color: #666; font-size: 0.9rem; margin-top: 8px; font-family: monospace;">
-                        → Détectera : Type: satellite.track(clic), event_id: open_menu
+                         Détectera : Type: satellite.track(clic), event_id: open_menu
                     </div>
                 </div>
 
@@ -402,23 +401,23 @@
                     <button class="demo-btn demo-btn-primary" 
                             onclick="alert('Simulation: _satellite.track(interaction)');"
                             data-event="add_to_cart">
-                        🎯 Bouton satellite.track('interaction')
+                         Bouton satellite.track('interaction')
                     </button>
                     <div style="color: #666; font-size: 0.9rem; margin-top: 8px; font-family: monospace;">
-                        → Détectera : Type: satellite.track(interaction), event_id: add_to_cart
+                         Détectera : Type: satellite.track(interaction), event_id: add_to_cart
                     </div>
                 </div>
             </div>
         </div>
 
         <div class="code-block">
-            <div class="code-label">📋 Code JavaScript du Bookmarklet</div>
+            <div class="code-label"> Code JavaScript du Bookmarklet</div>
             <pre id="bookmarkletCode">javascript:(function(){const e=document.createElement('script');e.src='https://VOTRE-USERNAME.github.io/adobe-analytics-overlay/overlay.js?v='+Date.now();document.body.appendChild(e);})();</pre>
-            <button class="copy-btn" onclick="copyCode('bookmarkletCode')">📋 Copier</button>
+            <button class="copy-btn" onclick="copyCode('bookmarkletCode')"> Copier</button>
         </div>
 
         <div class="instruction-box">
-            <strong>🚀 Déploiement GitHub</strong>
+            <strong> Déploiement GitHub</strong>
             <ol style="margin-top: 12px; margin-left: 20px; color: #CCC;">
                 <li>Créez un repo <code>adobe-analytics-overlay</code></li>
                 <li>Uploadez le fichier <code>overlay.js</code></li>
@@ -429,7 +428,7 @@
         </div>
 
         <div class="code-block">
-            <div class="code-label">🔍 Debug Console</div>
+            <div class="code-label"> Debug Console</div>
             <pre>// Vérifier l'état de l'overlay
 window.AdobeAnalyticsOverlay.isActive()
 
@@ -458,7 +457,7 @@ console.log(window._satellite)</pre>
             Compatible Adobe Launch + Tag Commander
         </p>
         <a href="https://github.com/VOTRE-USERNAME/adobe-analytics-overlay" class="github-link">
-            📦 Voir sur GitHub
+             Voir sur GitHub
         </a>
     </footer>
 

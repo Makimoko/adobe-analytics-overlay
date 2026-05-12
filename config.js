@@ -127,11 +127,11 @@ window.AdobeAnalyticsOverlayConfig = {
     // ==========================================
     labels: {
         // Titre du badge
-        badgeTitle: '📊 Tracking Data',
+        badgeTitle: 'Tracking Data',
         
         // Bouton toggle
-        toggleOn: '🔍 Overlay: ON',
-        toggleOff: '🔍 Overlay: OFF',
+        toggleOn: 'Overlay: ON',
+        toggleOff: 'Overlay: OFF',
         
         // Messages
         noDataDetected: 'Aucune donnée détectée',
@@ -161,13 +161,13 @@ window.AdobeAnalyticsOverlayConfig = {
         
         satelliteClick: {
             pattern: /_satellite\.track\(['"]clic['"]\)/,
-            label: '⚡ satellite.track(clic)',
+            label: 'satellite.track(clic)',
             badgeClass: 'aa-overlay-badge'
         },
         
         satelliteInteraction: {
             pattern: /_satellite\.track\(['"]interaction['"]\)/,
-            label: '🎯 satellite.track(interaction)',
+            label: 'satellite.track(interaction)',
             badgeClass: 'aa-interaction-badge'
         }
     },

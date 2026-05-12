@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Adobe Analytics Overlay - Darty.com</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #0F0F0F 0%, #1A1A1A 100%);
+            color: #FAFAFA;
+            line-height: 1.6;
+        }
+
+        .hero {
+            text-align: center;
+            padding: 80px 20px 60px;
+            background: linear-gradient(180deg, rgba(227, 30, 36, 0.1) 0%, transparent 100%);
+        }
+
+        h1 {
+            font-size: 3.5rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            background: linear-gradient(135deg, #E31E24 0%, #00D9FF 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            letter-spacing: -0.02em;
+        }
+
+        .subtitle {
+            font-size: 1.3rem;
+            color: #888;
+            font-weight: 300;
+            margin-bottom: 40px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        .bookmarklet-section {
+            background: rgba(227, 30, 36, 0.05);
+            border: 2px dashed #E31E24;
+            border-radius: 16px;
+            padding: 40px;
+            margin: 40px auto;
+            text-align: center;
+        }
+
+        .bookmarklet-link {
+            display: inline-block;
+            background: linear-gradient(135deg, #E31E24 0%, #C01519 100%);
+            color: white !important;
+            padding: 18px 40px;
+            border-radius: 50px;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 1.2rem;
+            transition: all 0.3s ease;
+            box-shadow: 0 6px 24px rgba(227, 30, 36, 0.4);
+            margin: 20px 0;
+        }
+
+        .bookmarklet-link:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 36px rgba(227, 30, 36, 0.6);
+        }
+
+        .instruction-box {
+            background: #1A1A1A;
+            border-left: 4px solid #00D9FF;
+            padding: 20px 24px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+
+        .instruction-box strong {
+            color: #00D9FF;
+            display: block;
+            margin-bottom: 8px;
+            font-size: 1.1rem;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 24px;
+            margin: 60px 0;
+        }
+
+        .card {
+            background: #1A1A1A;
+            border: 1px solid #333;
+            border-radius: 12px;
+            padding: 28px;
+            transition: all 0.3s ease;
+        }
+
+        .card:hover {
+            border-color: #E31E24;
+            transform: translateY(-4px);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+        }
+
+        .card-icon {
+            font-size: 2.5rem;
+            margin-bottom: 16px;
+        }
+
+        .card-title {
+            font-size: 1.3rem;
+            margin-bottom: 12px;
+            color: #00D9FF;
+            font-weight: 600;
+        }
+
+        .card-desc {
+            color: #AAA;
+            font-size: 0.95rem;
+        }
+
+        .code-block {
+            background: #0A0A0A;
+            border: 1px solid #333;
+            border-radius: 12px;
+            padding: 24px;
+            margin: 24px 0;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .code-block::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, #E31E24, #00D9FF);
+        }
+
+        .code-label {
+            font-family: 'SF Mono', Monaco, monospace;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: #FFB800;
+            margin-bottom: 16px;
+        }
+
+        pre {
+            font-family: 'SF Mono', Monaco, monospace;
+            font-size: 0.9rem;
+            line-height: 1.6;
+            overflow-x: auto;
+            color: #E0E0E0;
+            background: transparent;
+        }
+
+        .copy-btn {
+            background: #333;
+            border: 1px solid #555;
+            color: #FFF;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-family: 'SF Mono', Monaco, monospace;
+            font-size: 0.85rem;
+            transition: all 0.2s ease;
+            margin-top: 12px;
+        }
+
+        .copy-btn:hover {
+            background: #444;
+            border-color: #00D9FF;
+        }
+
+        .copy-btn.copied {
+            background: #00D9FF;
+            color: #000;
+            border-color: #00D9FF;
+        }
+
+        .demo-section {
+            background: #1A1A1A;
+            border-radius: 16px;
+            padding: 40px;
+            margin: 60px 0;
+        }
+
+        .demo-section h2 {
+            color: #00D9FF;
+            margin-bottom: 24px;
+            font-size: 2rem;
+        }
+
+        .demo-elements {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            margin-top: 30px;
+        }
+
+        .demo-btn {
+            padding: 14px 24px;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: 2px solid transparent;
+        }
+
+        .demo-btn-primary {
+            background: linear-gradient(135deg, #E31E24, #C01519);
+            color: white;
+            border: none;
+        }
+
+        .demo-btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(227, 30, 36, 0.4);
+        }
+
+        .demo-link {
+            display: inline-block;
+            color: #00D9FF;
+            text-decoration: none;
+            padding: 12px 20px;
+            border: 2px solid #00D9FF;
+            border-radius: 8px;
+            font-weight: 600;
+        }
+
+        .demo-link:hover {
+            background: rgba(0, 217, 255, 0.1);
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin: 0 4px;
+        }
+
+        .badge-dartyclic {
+            background: rgba(0, 217, 255, 0.2);
+            color: #00D9FF;
+        }
+
+        .badge-satellite {
+            background: rgba(227, 30, 36, 0.2);
+            color: #E31E24;
+        }
+
+        .badge-interaction {
+            background: rgba(155, 89, 182, 0.2);
+            color: #9B59B6;
+        }
+
+        footer {
+            text-align: center;
+            padding: 60px 20px 40px;
+            border-top: 1px solid #333;
+            margin-top: 80px;
+            color: #666;
+        }
+
+        .github-link {
+            display: inline-block;
+            margin-top: 20px;
+            color: #00D9FF;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 1.1rem;
+        }
+
+        .github-link:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="hero">
+        <h1>Adobe Analytics Overlay</h1>
+        <p class="subtitle">Visualisez les données de tracking directement sur darty.com</p>
+    </div>
+
+    <div class="container">
+        <div class="bookmarklet-section">
+            <h2 style="color: #00D9FF; margin-bottom: 16px;">📌 Installation du Bookmarklet</h2>
+            <p style="color: #AAA; margin-bottom: 24px;">
+                Faites glisser ce bouton dans votre barre de favoris, ou cliquez-droit → "Ajouter aux favoris"
+            </p>
+            <a href="javascript:(function(){const e=document.createElement('script');e.src='https://VOTRE-USERNAME.github.io/adobe-analytics-overlay/overlay.js?v='+Date.now();document.body.appendChild(e);})();" class="bookmarklet-link">
+                🔍 Adobe Analytics Overlay
+            </a>
+            <div class="instruction-box" style="text-align: left; margin-top: 30px;">
+                <strong>⚠️ Important :</strong>
+                Remplacez <code style="background: rgba(0,217,255,0.1); padding: 2px 6px; border-radius: 4px; color: #00D9FF;">VOTRE-USERNAME</code> par votre nom d'utilisateur GitHub dans le code du bookmarklet
+            </div>
+        </div>
+
+        <div class="grid">
+            <div class="card">
+                <div class="card-icon">🔗</div>
+                <div class="card-title">dartyclic</div>
+                <div class="card-desc">
+                    Détecte automatiquement les liens avec ancre <code>#dartyclic=nom_du_clic</code>
+                    <div style="margin-top: 12px;">
+                        <span class="badge badge-dartyclic">Badge bleu</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-icon">⚡</div>
+                <div class="card-title">satellite.track('clic')</div>
+                <div class="card-desc">
+                    Capture les clics avec <code>_satellite.track('clic')</code> et extrait l'event_id
+                    <div style="margin-top: 12px;">
+                        <span class="badge badge-satellite">Badge rouge</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-icon">🎯</div>
+                <div class="card-title">satellite.track('interaction')</div>
+                <div class="card-desc">
+                    Identifie les interactions contextualisées avec données produit
+                    <div style="margin-top: 12px;">
+                        <span class="badge badge-interaction">Badge violet</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-icon">📊</div>
+                <div class="card-title">Tag Commander</div>
+                <div class="card-desc">
+                    Accède aux variables <code>tc_vars</code> : page_pagename, env_template, product_category1, etc.
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-icon">🎨</div>
+                <div class="card-title">Overlay visuel</div>
+                <div class="card-desc">
+                    Encarts flottants avec les 4-5 valeurs clés : Type, Clic, event_id, Libellé, Page
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-icon">⚡</div>
+                <div class="card-title">Performance</div>
+                <div class="card-desc">
+                    Détection automatique au chargement et sur les mises à jour DOM (SPA/AJAX)
+                </div>
+            </div>
+        </div>
+
+        <div class="demo-section">
+            <h2>🧪 Exemples de détection</h2>
+            <p style="color: #AAA; margin-bottom: 24px;">
+                Testez le bookmarklet sur ces éléments (simulés pour la démo)
+            </p>
+
+            <div class="demo-elements">
+                <div>
+                    <a href="/produit#dartyclic=voir_produit" class="demo-link" data-track="product-view">
+                        🔗 Lien dartyclic : Voir le produit
+                    </a>
+                    <div style="color: #666; font-size: 0.9rem; margin-top: 8px; font-family: monospace;">
+                        → Détectera : Type: dartyclic, Clic: voir_produit
+                    </div>
+                </div>
+
+                <div>
+                    <button class="demo-btn demo-btn-primary" 
+                            onclick="window.tc_vars={event_id:'open_menu'}; alert('Simulation: _satellite.track(clic)');">
+                        ⚡ Bouton satellite.track('clic')
+                    </button>
+                    <div style="color: #666; font-size: 0.9rem; margin-top: 8px; font-family: monospace;">
+                        → Détectera : Type: satellite.track(clic), event_id: open_menu
+                    </div>
+                </div>
+
+                <div>
+                    <button class="demo-btn demo-btn-primary" 
+                            onclick="alert('Simulation: _satellite.track(interaction)');"
+                            data-event="add_to_cart">
+                        🎯 Bouton satellite.track('interaction')
+                    </button>
+                    <div style="color: #666; font-size: 0.9rem; margin-top: 8px; font-family: monospace;">
+                        → Détectera : Type: satellite.track(interaction), event_id: add_to_cart
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="code-block">
+            <div class="code-label">📋 Code JavaScript du Bookmarklet</div>
+            <pre id="bookmarkletCode">javascript:(function(){const e=document.createElement('script');e.src='https://VOTRE-USERNAME.github.io/adobe-analytics-overlay/overlay.js?v='+Date.now();document.body.appendChild(e);})();</pre>
+            <button class="copy-btn" onclick="copyCode('bookmarkletCode')">📋 Copier</button>
+        </div>
+
+        <div class="instruction-box">
+            <strong>🚀 Déploiement GitHub</strong>
+            <ol style="margin-top: 12px; margin-left: 20px; color: #CCC;">
+                <li>Créez un repo <code>adobe-analytics-overlay</code></li>
+                <li>Uploadez le fichier <code>overlay.js</code></li>
+                <li>Activez GitHub Pages (Settings → Pages → main branch)</li>
+                <li>Mettez à jour l'URL dans le bookmarklet</li>
+                <li>Ajoutez le bookmarklet à vos favoris</li>
+            </ol>
+        </div>
+
+        <div class="code-block">
+            <div class="code-label">🔍 Debug Console</div>
+            <pre>// Vérifier l'état de l'overlay
+window.AdobeAnalyticsOverlay.isActive()
+
+// Compter les éléments trackés
+window.AdobeAnalyticsOverlay.getTrackedCount()
+
+// Re-scanner la page manuellement
+window.AdobeAnalyticsOverlay.scan()
+
+// Toggle manuel
+window.AdobeAnalyticsOverlay.toggle()
+
+// Vérifier Tag Commander
+console.log(window.tc_vars)
+
+// Vérifier Adobe Launch
+console.log(window._satellite)</pre>
+        </div>
+    </div>
+
+    <footer>
+        <p style="font-size: 1.1rem; margin-bottom: 12px;">
+            Développé pour l'équipe Data Darty.com
+        </p>
+        <p style="color: #888;">
+            Compatible Adobe Launch + Tag Commander
+        </p>
+        <a href="https://github.com/VOTRE-USERNAME/adobe-analytics-overlay" class="github-link">
+            📦 Voir sur GitHub
+        </a>
+    </footer>
+
+    <script>
+        // Simuler tc_vars pour la démo
+        window.tc_vars = {
+            page_pagename: "demo_page",
+            env_template: "documentation",
+            env_work: "production"
+        };
+
+        function copyCode(elementId) {
+            const code = document.getElementById(elementId).textContent;
+            navigator.clipboard.writeText(code).then(() => {
+                const btn = event.target;
+                const originalText = btn.textContent;
+                btn.textContent = '✓ Copié !';
+                btn.classList.add('copied');
+                
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                    btn.classList.remove('copied');
+                }, 2000);
+            });
+        }
+    </script>
+</body>
+</html>

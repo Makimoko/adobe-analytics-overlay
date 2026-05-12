@@ -1,8 +1,9 @@
 /**
  * Adobe Analytics Overlay pour Darty.com - Version Légère
  * Affichage au hover uniquement + Switch on/off
+ * Interception des appels Adobe Analytics pour récupération des eVars dynamiques
  * 
- * @version 2.2.0
+ * @version 2.3.0
  */
 
 (function() {
@@ -11,6 +12,37 @@
     if (window.AdobeAnalyticsOverlay) {
         window.AdobeAnalyticsOverlay.toggle();
         return;
+    }
+
+    // ==========================================
+    // INTERCEPTION ADOBE ANALYTICS
+    // ==========================================
+    const clickDataCache = new WeakMap();
+    
+    // Intercepter _satellite.track
+    if (window._satellite && window._satellite.track) {
+        const originalTrack = window._satellite.track;
+        window._satellite.track = function(eventName) {
+            // Capturer les données au moment du track
+            const eventData = {
+                eventName: eventName,
+                timestamp: Date.now()
+            };
+            
+            // Récupérer eVar71 si présent dans s ou tc_vars
+            if (window.s && window.s.eVar71) {
+                eventData.eVar71 = window.s.eVar71;
+            }
+            if (window.tc_vars && window.tc_vars.event_id) {
+                eventData.event_id = window.tc_vars.event_id;
+            }
+            
+            // Stocker temporairement pour association avec l'élément
+            window._lastAdobeTrackData = eventData;
+            
+            // Appeler la fonction originale
+            return originalTrack.apply(this, arguments);
+        };
     }
 
     // ==========================================
@@ -215,7 +247,52 @@
             if (eventIdMatch) data['event_id'] = eventIdMatch[1];
         }
         
-        // 3. Attributs data-*
+        // 3. Récupérer depuis l'objet Adobe Analytics (window.s)
+        if (window.s) {
+            // eVar71 si disponible
+            if (window.s.eVar71) {
+                if (isAddToCart) {
+                    data['eVar71 (v71)'] = window.s.eVar71;
+                } else {
+                    data['eVar71'] = window.s.eVar71;
+                }
+            }
+            
+            // linkTrackVars peut indiquer quelles variables sont trackées
+            if (window.s.linkTrackVars && window.s.linkTrackVars.includes('eVar71')) {
+                // eVar71 est configuré pour être tracké
+                if (!data['eVar71'] && !data['eVar71 (v71)']) {
+                    // Essayer de le récupérer depuis les data elements Launch
+                    if (window._satellite && typeof window._satellite.getVar === 'function') {
+                        try {
+                            const eVar71Value = window._satellite.getVar('eVar71');
+                            if (eVar71Value) {
+                                if (isAddToCart) {
+                                    data['eVar71 (v71)'] = eVar71Value;
+                                } else {
+                                    data['eVar71'] = eVar71Value;
+                                }
+                            }
+                        } catch (e) {}
+                    }
+                }
+            }
+        }
+        
+        // 4. Récupérer les données cachées dans onclick
+        if (onclick) {
+            // Chercher eVar71 dans le onclick
+            const eVar71Match = onclick.match(/eVar71\s*[=:]\s*['"]([^'"]+)['"]/);
+            if (eVar71Match) {
+                if (isAddToCart) {
+                    data['eVar71 (v71)'] = eVar71Match[1];
+                } else {
+                    data['eVar71'] = eVar71Match[1];
+                }
+            }
+        }
+        
+        // 5. Attributs data-*
         Array.from(element.attributes).forEach(attr => {
             const attrName = attr.name;
             const attrValue = attr.value;
@@ -248,6 +325,15 @@
                 data['tracking_click'] = attrValue;
             }
             
+            // Chercher data-evar71 ou data-eVar71
+            if ((attrName === 'data-evar71' || attrName === 'data-eVar71') && attrValue) {
+                if (isAddToCart) {
+                    data['eVar71 (v71)'] = attrValue;
+                } else {
+                    data['eVar71'] = attrValue;
+                }
+            }
+            
             // Autres attributs de tracking
             if (attrName.startsWith('data-track') || 
                 attrName.startsWith('data-event') ||
@@ -259,7 +345,24 @@
             }
         });
         
-        // 4. Libellé
+        // 6. Récupérer depuis le cache de clic (si l'élément a été cliqué récemment)
+        if (clickDataCache.has(element)) {
+            const cachedData = clickDataCache.get(element);
+            if (Date.now() - cachedData.timestamp < 60000) { // Cache de 60s
+                if (cachedData.eVar71) {
+                    if (isAddToCart) {
+                        data['eVar71 (v71)'] = cachedData.eVar71;
+                    } else {
+                        data['eVar71'] = cachedData.eVar71;
+                    }
+                }
+                if (cachedData.event_id && !data['event_id']) {
+                    data['event_id'] = cachedData.event_id;
+                }
+            }
+        }
+        
+        // 7. Libellé
         const text = element.textContent?.trim();
         if (text && text.length > 0 && text.length < 80) {
             data['Libelle'] = text.substring(0, 50);
@@ -288,9 +391,11 @@
             content += '<span class="aa-overlay-value" style="opacity:0.6;">Aucune donnee</span>';
             content += '</div>';
         } else {
-            // Ordre de priorité spécial pour add to cart
+            // Ordre de priorité
             const priorityKeys = [
                 'Type', 
+                'eVar71 (v71)',
+                'eVar71',
                 'event_id (v71)', 
                 'event_id',
                 'Clic', 
@@ -377,6 +482,28 @@
     }
 
     // ==========================================
+    // INTERCEPTER LES CLICS POUR CACHER LES DONNÉES
+    // ==========================================
+    function handleClick(event) {
+        const element = event.currentTarget;
+        
+        // Capturer les données Adobe Analytics au moment du clic
+        if (window._lastAdobeTrackData) {
+            clickDataCache.set(element, window._lastAdobeTrackData);
+        }
+        
+        // Capturer depuis window.s si disponible
+        if (window.s && window.s.eVar71) {
+            const existingCache = clickDataCache.get(element) || {};
+            clickDataCache.set(element, {
+                ...existingCache,
+                eVar71: window.s.eVar71,
+                timestamp: Date.now()
+            });
+        }
+    }
+
+    // ==========================================
     // SCAN DES ÉLÉMENTS
     // ==========================================
     function scanElements() {
@@ -405,7 +532,7 @@
             if (trackedElements.has(element)) return;
             
             const data = getTrackingData(element);
-            const hasData = Object.keys(data).length > 1 || data['event_id'] || data['event_id (v71)'];
+            const hasData = Object.keys(data).length > 1 || data['event_id'] || data['event_id (v71)'] || data['eVar71'];
             
             if (hasData) {
                 element.classList.add('aa-tracked-element');
@@ -421,6 +548,7 @@
                 
                 element.addEventListener('mouseenter', handleMouseEnter);
                 element.addEventListener('mouseleave', handleMouseLeave);
+                element.addEventListener('click', handleClick, true); // Capture phase
             }
         });
         

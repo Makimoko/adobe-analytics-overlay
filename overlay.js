@@ -2,7 +2,7 @@
  * Adobe Analytics Overlay pour Darty.com - Version Légère
  * Affichage au hover uniquement + Switch on/off
  * 
- * @version 2.0.0
+ * @version 2.1.0
  */
 
 (function() {
@@ -201,28 +201,52 @@
                 data['Clic'] = decodeURIComponent(match[1]);
             }
         } else if (onclick.includes("_satellite.track('clic')")) {
-            data['Type'] = ' satellite.track(clic)';
+            data['Type'] = 'satellite.track(clic)';
             const eventIdMatch = onclick.match(/event_id\s*[=:]\s*['"]([^'"]+)['"]/);
             if (eventIdMatch) data['event_id'] = eventIdMatch[1];
         } else if (onclick.includes("_satellite.track('interaction')")) {
-            data['Type'] = ' satellite.track(interaction)';
+            data['Type'] = 'satellite.track(interaction)';
             const eventIdMatch = onclick.match(/event_id\s*[=:]\s*['"]([^'"]+)['"]/);
             if (eventIdMatch) data['event_id'] = eventIdMatch[1];
         }
         
-        // 3. Attributs data-*
+        // 3. Attributs data-* (IMPORTANT: extraction de event_id)
         Array.from(element.attributes).forEach(attr => {
-            if (attr.name.startsWith('data-track') || 
-                attr.name.startsWith('data-event')) {
-                const key = attr.name.replace('data-', '');
-                data[key] = attr.value;
+            const attrName = attr.name;
+            const attrValue = attr.value;
+            
+            // Extraire event_id depuis data-tracking-event
+            if (attrName === 'data-tracking-event' && attrValue) {
+                data['event_id'] = attrValue;
+            }
+            
+            // Extraire data-tracking-name
+            if (attrName === 'data-tracking-name' && attrValue) {
+                data['tracking_name'] = attrValue;
+            }
+            
+            // Extraire data-tracking-click
+            if (attrName === 'data-tracking-click' && attrValue) {
+                data['tracking_click'] = attrValue;
+            }
+            
+            // Autres attributs de tracking
+            if (attrName.startsWith('data-track') || 
+                attrName.startsWith('data-event') ||
+                attrName.startsWith('data-analytics')) {
+                const key = attrName.replace('data-', '').replace(/-/g, '_');
+                if (!data[key]) {
+                    data[key] = attrValue;
+                }
             }
         });
         
         // 4. Libellé
         const text = element.textContent?.trim();
         if (text && text.length > 0 && text.length < 80) {
-            data['Libellé'] = text.substring(0, 50);
+            data['Libelle'] = text.substring(0, 50);
+        } else if (element.getAttribute('aria-label')) {
+            data['Libelle'] = element.getAttribute('aria-label');
         }
         
         return data;
@@ -239,14 +263,14 @@
     }
 
     function updateBadge(badge, element, data) {
-        let content = '<div class="aa-overlay-title">📊 Analytics Data</div>';
+        let content = '<div class="aa-overlay-title">Analytics Data</div>';
         
         if (Object.keys(data).length === 0) {
             content += '<div class="aa-overlay-item">';
-            content += '<span class="aa-overlay-value" style="opacity:0.6;">Aucune donnée</span>';
+            content += '<span class="aa-overlay-value" style="opacity:0.6;">Aucune donnee</span>';
             content += '</div>';
         } else {
-            const priorityKeys = ['Type', 'Clic', 'event_id', 'Libellé', 'Page'];
+            const priorityKeys = ['Type', 'event_id', 'Clic', 'tracking_name', 'tracking_click', 'Libelle', 'Page'];
             let count = 0;
             
             priorityKeys.forEach(key => {
@@ -330,7 +354,11 @@
             'a[href*="#dartyclic="]',
             '[onclick*="_satellite.track"]',
             '[data-track]',
+            '[data-tracking-event]',
+            '[data-tracking-name]',
+            '[data-tracking-click]',
             '[data-event]',
+            '[data-analytics]',
             'button',
             'a[href]:not([href="#"])',
             '[role="button"]',
@@ -345,7 +373,7 @@
             if (trackedElements.has(element)) return;
             
             const data = getTrackingData(element);
-            const hasData = Object.keys(data).length > 1;
+            const hasData = Object.keys(data).length > 1 || data['event_id'];
             
             if (hasData) {
                 element.classList.add('aa-tracked-element');
@@ -451,10 +479,5 @@
         isActive: () => isActive,
         getCount: () => trackedElements.size
     };
-
-    console.log('%cAdobe Analytics Overlay activé', 
-                'background: #E31E24; color: white; padding: 6px 12px; border-radius: 4px; font-weight: bold;');
-    console.log('Tag Commander:', !!window.tc_vars);
-    console.log('Adobe Launch:', !!window._satellite);
 
 })();

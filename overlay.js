@@ -1,9 +1,9 @@
 /**
  * Adobe Analytics Overlay pour Darty.com - Version Légère
  * Affichage au hover uniquement + Switch on/off
- * Extraction de eVar71/v71 depuis Link Name et patterns tunnel panier
+ * Interception des appels API /tunnel_achat/api/tracking/click
  * 
- * @version 2.5.0
+ * @version 3.1.0
  */
 
 (function() {
@@ -15,168 +15,86 @@
     }
 
     // ==========================================
-    // EXTRACTION eVar71/v71 DEPUIS PATTERNS
-    // ==========================================
-    
-    function extractEVar71FromElement(element) {
-        // 1. Chercher dans les attributs data-*
-        const dataEvar71 = element.getAttribute('data-evar71') || 
-                          element.getAttribute('data-eVar71') ||
-                          element.getAttribute('data-v71');
-        if (dataEvar71) return dataEvar71;
-        
-        // 2. Détecter le contexte (tunnel panier, espace client, etc.)
-        const currentUrl = window.location.pathname;
-        const isTunnelPanier = currentUrl.includes('/nav/transaction/panier') || 
-                               currentUrl.includes('/panier') ||
-                               document.querySelector('.tunnel-panier') !== null;
-        
-        // 3. Analyser le texte et les classes pour patterns spécifiques
-        const text = element.textContent?.trim().toLowerCase();
-        const classList = Array.from(element.classList || []).join(' ').toLowerCase();
-        
-        // TUNNEL PANIER - Patterns spécifiques
-        if (isTunnelPanier) {
-            // Bouton Supprimer
-            if (text.includes('supprimer') || classList.includes('supprimer') || classList.includes('delete') || classList.includes('remove')) {
-                return 'basket_supprimer-du-panier';
-            }
-            
-            // Bouton Commander / Valider le panier
-            if (text.includes('commander') || text.includes('valider') || classList.includes('validate') || classList.includes('submit')) {
-                return 'basket_valider-panier';
-            }
-            
-            // Modifier la quantité
-            if (classList.includes('quantity') || text === '+' || text === '-') {
-                return 'basket_modifier-quantite';
-            }
-            
-            // Continuer mes achats
-            if (text.includes('continuer') && text.includes('achat')) {
-                return 'basket_continuer-achats';
-            }
-            
-            // Code promo
-            if (text.includes('code') || text.includes('promo') || classList.includes('promo')) {
-                return 'basket_code-promo';
-            }
-            
-            // Livraison
-            if (text.includes('livraison') || classList.includes('delivery')) {
-                return 'basket_choix-livraison';
-            }
-            
-            // Retrait en magasin
-            if (text.includes('retrait') && text.includes('magasin')) {
-                return 'basket_retrait-magasin';
-            }
-        }
-        
-        // ESPACE CLIENT - Patterns
-        const href = element.getAttribute('href') || '';
-        if (href) {
-            // Pattern espace client : /espace_client/XXX
-            const espaceClientMatch = href.match(/\/espace_client\/([^/?#]+)/);
-            if (espaceClientMatch) {
-                const page = espaceClientMatch[1];
-                return 'ec_menu_profil_' + page.replace(/_/g, '-');
-            }
-            
-            // Pattern général : convertir le path
-            const pathMatch = href.match(/^\/([^/?#]+)/);
-            if (pathMatch && href !== '/' && !href.startsWith('http')) {
-                const section = pathMatch[1];
-                return section.replace(/_/g, '-');
-            }
-        }
-        
-        // 4. Analyse du texte pour espace client
-        if (text && (href.includes('espace_client') || classList.includes('profil'))) {
-            const textSlug = text
-                .normalize('NFD')
-                .replace(/[\u0300-\u036f]/g, '')
-                .replace(/[^a-z0-9\s-]/g, '')
-                .replace(/\s+/g, '-')
-                .replace(/-+/g, '-')
-                .trim();
-            
-            if (textSlug) {
-                return 'ec_menu_profil_' + textSlug;
-            }
-        }
-        
-        // 5. Chercher dans onclick
-        const onclick = element.getAttribute('onclick') || '';
-        const linkNameMatch = onclick.match(/linkName\s*[=:]\s*['"]([^'"]+)['"]/);
-        if (linkNameMatch) {
-            return linkNameMatch[1];
-        }
-        
-        const v71Match = onclick.match(/v71\s*[=:]\s*['"]([^'"]+)['"]/);
-        if (v71Match) {
-            return v71Match[1];
-        }
-        
-        const eVar71Match = onclick.match(/eVar71\s*[=:]\s*['"]([^'"]+)['"]/);
-        if (eVar71Match) {
-            return eVar71Match[1];
-        }
-        
-        // 6. Patterns génériques par texte
-        if (text) {
-            // Boutons de formulaire
-            if (text === 'valider' || text === 'envoyer' || text === 'confirmer') {
-                return 'form_' + text;
-            }
-            
-            // Liens de navigation
-            if (element.tagName === 'A' && text.length > 2 && text.length < 40) {
-                const slug = text
-                    .normalize('NFD')
-                    .replace(/[\u0300-\u036f]/g, '')
-                    .replace(/[^a-z0-9\s-]/g, '')
-                    .replace(/\s+/g, '-')
-                    .replace(/-+/g, '-')
-                    .trim();
-                
-                if (slug && slug !== '') {
-                    return 'link_' + slug;
-                }
-            }
-        }
-        
-        return null;
-    }
-
-    // ==========================================
-    // INTERCEPTION ADOBE ANALYTICS
+    // INTERCEPTION DES APPELS FETCH/XHR
     // ==========================================
     const clickDataCache = new WeakMap();
+    const urlParamsCache = {};
+    let lastClickedElement = null;
     
-    if (window._satellite && window._satellite.track) {
-        const originalTrack = window._satellite.track;
-        window._satellite.track = function(eventName) {
-            const eventData = {
-                eventName: eventName,
-                timestamp: Date.now()
-            };
-            
-            if (window.s && window.s.eVar71) {
-                eventData.eVar71 = window.s.eVar71;
-            }
-            if (window.s && window.s.prop71) {
-                eventData.v71 = window.s.prop71;
-            }
-            if (window.tc_vars && window.tc_vars.event_id) {
-                eventData.event_id = window.tc_vars.event_id;
-            }
-            
-            window._lastAdobeTrackData = eventData;
-            
-            return originalTrack.apply(this, arguments);
-        };
-    }
+    // Intercepter fetch
+    const originalFetch = window.fetch;
+    window.fetch = function(...args) {
+        const url = args[0];
+        
+        if (typeof url === 'string' && url.includes('/api/tracking/click')) {
+            try {
+                const urlObj = new URL(url, window.location.origin);
+                const params = {};
+                
+                urlObj.searchParams.forEach((value, key) => {
+                    params[key] = value;
+                });
+                
+                // Stocker les paramètres avec timestamp
+                if (params.clickEvent) {
+                    urlParamsCache[params.clickEvent] = {
+                        ...params,
+                        timestamp: Date.now()
+                    };
+                    
+                    // Associer au dernier élément cliqué
+                    if (lastClickedElement) {
+                        clickDataCache.set(lastClickedElement, {
+                            v71: params.clickEvent,
+                            page: params.page,
+                            timestamp: Date.now()
+                        });
+                    }
+                }
+            } catch (e) {}
+        }
+        
+        return originalFetch.apply(this, args);
+    };
+    
+    // Intercepter XMLHttpRequest
+    const originalOpen = XMLHttpRequest.prototype.open;
+    XMLHttpRequest.prototype.open = function(method, url, ...rest) {
+        if (typeof url === 'string' && url.includes('/api/tracking/click')) {
+            this.addEventListener('load', function() {
+                try {
+                    const urlObj = new URL(url, window.location.origin);
+                    const params = {};
+                    
+                    urlObj.searchParams.forEach((value, key) => {
+                        params[key] = value;
+                    });
+                    
+                    if (params.clickEvent) {
+                        urlParamsCache[params.clickEvent] = {
+                            ...params,
+                            timestamp: Date.now()
+                        };
+                        
+                        if (lastClickedElement) {
+                            clickDataCache.set(lastClickedElement, {
+                                v71: params.clickEvent,
+                                page: params.page,
+                                timestamp: Date.now()
+                            });
+                        }
+                    }
+                } catch (e) {}
+            });
+        }
+        
+        return originalOpen.call(this, method, url, ...rest);
+    };
+
+    // Capturer l'élément cliqué
+    document.addEventListener('click', function(e) {
+        lastClickedElement = e.target.closest('a, button, [role="button"], [onclick]');
+    }, true);
 
     // ==========================================
     // STYLES CSS
@@ -249,9 +167,8 @@
             opacity: 0.95 !important;
         }
         
-        .aa-overlay-computed {
-            opacity: 0.7 !important;
-            font-style: italic !important;
+        .aa-overlay-cached {
+            opacity: 0.85 !important;
         }
         
         .aa-switch-container {
@@ -376,76 +293,19 @@
             }
         } else if (onclick.includes("_satellite.track('clic')")) {
             data['Type'] = 'satellite.track(clic)';
-            const eventIdMatch = onclick.match(/event_id\s*[=:]\s*['"]([^'"]+)['"]/);
-            if (eventIdMatch) data['event_id'] = eventIdMatch[1];
         } else if (onclick.includes("_satellite.track('interaction')")) {
             data['Type'] = 'satellite.track(interaction)';
-            const eventIdMatch = onclick.match(/event_id\s*[=:]\s*['"]([^'"]+)['"]/);
-            if (eventIdMatch) data['event_id'] = eventIdMatch[1];
         }
         
-        // 3. Extraire v71/eVar71
-        let v71Value = null;
-        let v71Source = null;
-        
-        // 3a. Depuis window.s
-        if (window.s && window.s.eVar71) {
-            v71Value = window.s.eVar71;
-            v71Source = 'window.s';
-        } else if (window.s && window.s.prop71) {
-            v71Value = window.s.prop71;
-            v71Source = 'window.s';
-        }
-        
-        // 3b. Depuis le cache de clic
-        if (!v71Value && clickDataCache.has(element)) {
+        // 3. v71 - Depuis le cache API uniquement
+        if (clickDataCache.has(element)) {
             const cachedData = clickDataCache.get(element);
-            if (Date.now() - cachedData.timestamp < 60000) {
-                if (cachedData.eVar71) {
-                    v71Value = cachedData.eVar71;
-                    v71Source = 'cache';
-                } else if (cachedData.v71) {
-                    v71Value = cachedData.v71;
-                    v71Source = 'cache';
+            if (Date.now() - cachedData.timestamp < 120000) {
+                data['v71'] = cachedData.v71;
+                
+                if (cachedData.page) {
+                    data['API_page'] = cachedData.page;
                 }
-            }
-        }
-        
-        // 3c. Depuis onclick
-        if (!v71Value && onclick) {
-            const v71Match = onclick.match(/v71\s*[=:]\s*['"]([^'"]+)['"]/);
-            if (v71Match) {
-                v71Value = v71Match[1];
-                v71Source = 'onclick';
-            } else {
-                const eVar71Match = onclick.match(/eVar71\s*[=:]\s*['"]([^'"]+)['"]/);
-                if (eVar71Match) {
-                    v71Value = eVar71Match[1];
-                    v71Source = 'onclick';
-                }
-            }
-        }
-        
-        // 3d. Extraction depuis patterns (tunnel panier, espace client, etc.)
-        if (!v71Value) {
-            const extracted = extractEVar71FromElement(element);
-            if (extracted) {
-                v71Value = extracted;
-                v71Source = 'computed';
-            }
-        }
-        
-        // Ajouter v71/eVar71 avec le bon label
-        if (v71Value) {
-            if (isAddToCart) {
-                data['v71'] = v71Value;
-            } else {
-                data['v71'] = v71Value;
-            }
-            
-            // Indiquer si c'est une valeur calculée
-            if (v71Source === 'computed') {
-                data['v71'] = v71Value + ' (estime)';
             }
         }
         
@@ -472,15 +332,6 @@
             
             if (attrName === 'data-tracking-click' && attrValue) {
                 data['tracking_click'] = attrValue;
-            }
-            
-            if (attrName.startsWith('data-track') || 
-                attrName.startsWith('data-event') ||
-                attrName.startsWith('data-analytics')) {
-                const key = attrName.replace('data-', '').replace(/-/g, '_');
-                if (!data[key] && key !== 'tracking_event' && key !== 'tracking_name' && key !== 'basket_add_area') {
-                    data[key] = attrValue;
-                }
             }
         });
         
@@ -517,11 +368,11 @@
                 'Type',
                 'v71',
                 'event_id',
+                'API_page',
                 'Clic', 
                 'tracking_name (v48)',
                 'v48',
                 'tracking_name', 
-                'tracking_click', 
                 'Libelle', 
                 'Page'
             ];
@@ -531,23 +382,11 @@
                 if (data[key] && count < 6) {
                     content += '<div class="aa-overlay-item">';
                     content += `<span class="aa-overlay-key">${key}:</span>`;
-                    
-                    const valueClass = data[key].includes('(estime)') ? 'aa-overlay-value aa-overlay-computed' : 'aa-overlay-value';
-                    content += `<span class="${valueClass}">${data[key]}</span>`;
+                    content += `<span class="aa-overlay-value">${data[key]}</span>`;
                     content += '</div>';
                     count++;
                 }
             });
-            
-            for (const [key, value] of Object.entries(data)) {
-                if (!priorityKeys.includes(key) && count < 6) {
-                    content += '<div class="aa-overlay-item">';
-                    content += `<span class="aa-overlay-key">${key}:</span>`;
-                    content += `<span class="aa-overlay-value">${value}</span>`;
-                    content += '</div>';
-                    count++;
-                }
-            }
         }
         
         badge.innerHTML = content;
@@ -600,24 +439,6 @@
         }
     }
 
-    function handleClick(event) {
-        const element = event.currentTarget;
-        
-        if (window._lastAdobeTrackData) {
-            clickDataCache.set(element, window._lastAdobeTrackData);
-        }
-        
-        if (window.s) {
-            const existingCache = clickDataCache.get(element) || {};
-            const newCache = { ...existingCache, timestamp: Date.now() };
-            
-            if (window.s.eVar71) newCache.eVar71 = window.s.eVar71;
-            if (window.s.prop71) newCache.v71 = window.s.prop71;
-            
-            clickDataCache.set(element, newCache);
-        }
-    }
-
     // ==========================================
     // SCAN DES ÉLÉMENTS
     // ==========================================
@@ -628,19 +449,13 @@
             '[data-track]',
             '[data-tracking-event]',
             '[data-tracking-name]',
-            '[data-tracking-click]',
             '[data-basket-add]',
             '[data-basket-add-area]',
-            '[data-event]',
-            '[data-analytics]',
             'button',
             'a[href]:not([href="#"])',
             '[role="button"]',
             '.cta',
             '[class*="btn"]',
-            '[class*="supprimer"]',
-            '[class*="delete"]',
-            '[class*="remove"]',
             'nav a'
         ];
 
@@ -650,7 +465,7 @@
             if (trackedElements.has(element)) return;
             
             const data = getTrackingData(element);
-            const hasData = Object.keys(data).length > 1 || data['event_id'] || data['v71'];
+            const hasData = Object.keys(data).length > 1;
             
             if (hasData) {
                 element.classList.add('aa-tracked-element');
@@ -665,7 +480,6 @@
                 
                 element.addEventListener('mouseenter', handleMouseEnter);
                 element.addEventListener('mouseleave', handleMouseLeave);
-                element.addEventListener('click', handleClick, true);
             }
         });
         
@@ -751,7 +565,8 @@
         toggle,
         scan: scanElements,
         isActive: () => isActive,
-        getCount: () => trackedElements.size
+        getCount: () => trackedElements.size,
+        getCache: () => urlParamsCache
     };
 
 })();

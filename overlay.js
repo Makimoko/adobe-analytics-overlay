@@ -1,59 +1,58 @@
 /**
- * Adobe Analytics Overlay pour Darty.com
- * Affiche les 4-5 valeurs clés du tracking directement sur les éléments
+ * Adobe Analytics Overlay pour Darty.com - Version Légère
+ * Affichage au hover uniquement + Switch on/off
  * 
- * Configuration: Adobe Launch + Tag Commander
- * @version 1.0.0
+ * @version 2.0.0
  */
 
 (function() {
     'use strict';
     
-    // Éviter les doublons
     if (window.AdobeAnalyticsOverlay) {
         window.AdobeAnalyticsOverlay.toggle();
         return;
     }
 
     // ==========================================
-    // STYLES CSS
+    // STYLES CSS LÉGERS
     // ==========================================
     const styles = `
+        .aa-tracked-element {
+            outline: 2px dashed rgba(227, 30, 36, 0.4) !important;
+            outline-offset: 2px !important;
+            cursor: help !important;
+            transition: outline 0.2s ease !important;
+        }
+        
+        .aa-tracked-element:hover {
+            outline-color: #E31E24 !important;
+            outline-width: 3px !important;
+        }
+        
         .aa-overlay-badge {
-            position: absolute !important;
+            position: fixed !important;
             background: linear-gradient(135deg, #E31E24 0%, #C01519 100%) !important;
             color: white !important;
-            padding: 10px 14px !important;
+            padding: 12px 16px !important;
             border-radius: 8px !important;
-            font-family: 'SF Mono', Monaco, 'Consolas', monospace !important;
+            font-family: 'SF Mono', Monaco, monospace !important;
             font-size: 11px !important;
             line-height: 1.5 !important;
             z-index: 999999 !important;
             pointer-events: none !important;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.15) !important;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.6) !important;
             min-width: 200px !important;
             max-width: 350px !important;
-            backdrop-filter: blur(12px) !important;
             opacity: 0 !important;
-            transform: translateY(-10px) !important;
+            transform: translateY(10px) !important;
             transition: opacity 0.2s ease, transform 0.2s ease !important;
+            display: none !important;
         }
         
         .aa-overlay-badge.visible {
             opacity: 1 !important;
             transform: translateY(0) !important;
-        }
-        
-        .aa-overlay-badge::before {
-            content: '' !important;
-            position: absolute !important;
-            top: -5px !important;
-            left: 16px !important;
-            width: 0 !important;
-            height: 0 !important;
-            border-left: 5px solid transparent !important;
-            border-right: 5px solid transparent !important;
-            border-bottom: 5px solid #E31E24 !important;
+            display: block !important;
         }
         
         .aa-overlay-title {
@@ -61,98 +60,112 @@
             font-size: 9px !important;
             text-transform: uppercase !important;
             letter-spacing: 0.8px !important;
-            margin-bottom: 8px !important;
-            padding-bottom: 6px !important;
-            border-bottom: 1px solid rgba(255,255,255,0.2) !important;
-            opacity: 0.85 !important;
-            color: #00D9FF !important;
+            margin-bottom: 10px !important;
+            padding-bottom: 8px !important;
+            border-bottom: 1px solid rgba(255,255,255,0.3) !important;
+            color: #FFB800 !important;
         }
         
         .aa-overlay-item {
-            margin: 5px 0 !important;
+            margin: 6px 0 !important;
             display: flex !important;
             gap: 8px !important;
-            align-items: flex-start !important;
         }
         
         .aa-overlay-key {
-            color: #FFB800 !important;
+            color: #00D9FF !important;
             font-weight: 600 !important;
             white-space: nowrap !important;
-            min-width: fit-content !important;
-            font-size: 10px !important;
         }
         
         .aa-overlay-value {
             color: #FFFFFF !important;
             word-break: break-word !important;
             opacity: 0.95 !important;
-            flex: 1 !important;
         }
         
-        .aa-tracked-element {
-            outline: 2px dashed #E31E24 !important;
-            outline-offset: 2px !important;
-            cursor: help !important;
-            position: relative !important;
-            transition: outline-color 0.2s ease !important;
-        }
-        
-        .aa-tracked-element:hover {
-            outline-color: #00D9FF !important;
-            outline-width: 3px !important;
-        }
-        
-        .aa-overlay-toggle {
+        .aa-switch-container {
             position: fixed !important;
             bottom: 24px !important;
             right: 24px !important;
-            background: linear-gradient(135deg, #E31E24 0%, #C01519 100%) !important;
-            color: white !important;
-            border: none !important;
-            padding: 14px 26px !important;
-            border-radius: 50px !important;
-            font-family: 'SF Mono', Monaco, 'Consolas', monospace !important;
-            font-size: 13px !important;
-            font-weight: 600 !important;
-            cursor: pointer !important;
             z-index: 1000000 !important;
-            box-shadow: 0 6px 24px rgba(227, 30, 36, 0.45) !important;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
-            letter-spacing: 0.3px !important;
+            display: flex !important;
+            align-items: center !important;
+            gap: 12px !important;
+            background: rgba(26, 26, 26, 0.95) !important;
+            padding: 12px 20px !important;
+            border-radius: 50px !important;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.4) !important;
+            backdrop-filter: blur(10px) !important;
+            border: 1px solid rgba(255,255,255,0.1) !important;
         }
         
-        .aa-overlay-toggle:hover {
-            transform: translateY(-3px) !important;
-            box-shadow: 0 8px 32px rgba(227, 30, 36, 0.6) !important;
+        .aa-switch-label {
+            font-family: 'SF Mono', Monaco, monospace !important;
+            font-size: 12px !important;
+            font-weight: 600 !important;
+            color: #AAA !important;
+            user-select: none !important;
         }
         
-        .aa-overlay-count {
-            display: inline-block !important;
-            background: rgba(0, 217, 255, 0.2) !important;
+        .aa-switch-label.active {
             color: #00D9FF !important;
-            padding: 2px 8px !important;
+        }
+        
+        .aa-switch {
+            position: relative !important;
+            width: 48px !important;
+            height: 26px !important;
+            background: #333 !important;
+            border-radius: 13px !important;
+            cursor: pointer !important;
+            transition: background 0.3s ease !important;
+            border: 2px solid rgba(255,255,255,0.1) !important;
+        }
+        
+        .aa-switch.active {
+            background: linear-gradient(135deg, #E31E24, #C01519) !important;
+            border-color: #E31E24 !important;
+        }
+        
+        .aa-switch-slider {
+            position: absolute !important;
+            top: 2px !important;
+            left: 2px !important;
+            width: 18px !important;
+            height: 18px !important;
+            background: white !important;
+            border-radius: 50% !important;
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.3) !important;
+        }
+        
+        .aa-switch.active .aa-switch-slider {
+            transform: translateX(22px) !important;
+        }
+        
+        .aa-count-badge {
+            display: inline-block !important;
+            background: rgba(227, 30, 36, 0.2) !important;
+            color: #E31E24 !important;
+            padding: 3px 10px !important;
             border-radius: 12px !important;
             font-size: 11px !important;
-            margin-left: 8px !important;
             font-weight: 700 !important;
+            min-width: 24px !important;
+            text-align: center !important;
         }
         
-        .aa-dartyclic-badge {
-            background: linear-gradient(135deg, #00D9FF 0%, #0098B8 100%) !important;
+        .aa-switch.active + .aa-count-badge {
+            background: rgba(0, 217, 255, 0.2) !important;
+            color: #00D9FF !important;
         }
         
-        .aa-dartyclic-badge::before {
-            border-bottom-color: #00D9FF !important;
-        }
+        .aa-dartyclic { outline-color: rgba(0, 217, 255, 0.4) !important; }
+        .aa-dartyclic:hover { outline-color: #00D9FF !important; }
         
-        .aa-interaction-badge {
-            background: linear-gradient(135deg, #9B59B6 0%, #8E44AD 100%) !important;
-        }
-        
-        .aa-interaction-badge::before {
-            border-bottom-color: #9B59B6 !important;
-        }
+        .aa-interaction { outline-color: rgba(155, 89, 182, 0.4) !important; }
+        .aa-interaction:hover { outline-color: #9B59B6 !important; }
     `;
 
     const styleSheet = document.createElement('style');
@@ -164,145 +177,91 @@
     // ==========================================
     let isActive = true;
     const trackedElements = new Set();
-    const badges = new Map();
+    let currentBadge = null;
 
     // ==========================================
-    // EXTRACTION DES 4-5 VALEURS CLÉS
+    // EXTRACTION DES DONNÉES
     // ==========================================
-    function getKeyTrackingData(element) {
+    function getTrackingData(element) {
         const data = {};
         
-        // 1️⃣ NOM DE LA PAGE (page_pagename du Tag Commander)
-        if (window.tc_vars && window.tc_vars.page_pagename) {
+        // 1. Tag Commander
+        if (window.tc_vars?.page_pagename) {
             data['Page'] = window.tc_vars.page_pagename;
         }
         
-        // 2️⃣ DÉTECTION DU TYPE DE CLIC
+        // 2. Type de tracking
         const href = element.getAttribute('href') || '';
         const onclick = element.getAttribute('onclick') || '';
-        const classList = element.className || '';
         
-        // Cas n°1 : dartyclic (ancre #dartyclic=)
         if (href.includes('#dartyclic=')) {
             const match = href.match(/#dartyclic=([^&]+)/);
             if (match) {
                 data['Type'] = 'dartyclic';
                 data['Clic'] = decodeURIComponent(match[1]);
             }
-        }
-        
-        // Cas n°2 : _satellite.track('clic')
-        else if (onclick.includes("_satellite.track('clic')") || onclick.includes('_satellite.track("clic")')) {
-            data['Type'] = 'satellite.track(clic)';
-            
-            // Extraire event_id si présent dans le onclick
+        } else if (onclick.includes("_satellite.track('clic')")) {
+            data['Type'] = ' satellite.track(clic)';
             const eventIdMatch = onclick.match(/event_id\s*[=:]\s*['"]([^'"]+)['"]/);
-            if (eventIdMatch) {
-                data['event_id'] = eventIdMatch[1];
-            }
-        }
-        
-        // Cas n°3 : _satellite.track('interaction')
-        else if (onclick.includes("_satellite.track('interaction')") || onclick.includes('_satellite.track("interaction")')) {
-            data['Type'] = 'satellite.track(interaction)';
-            
+            if (eventIdMatch) data['event_id'] = eventIdMatch[1];
+        } else if (onclick.includes("_satellite.track('interaction')")) {
+            data['Type'] = ' satellite.track(interaction)';
             const eventIdMatch = onclick.match(/event_id\s*[=:]\s*['"]([^'"]+)['"]/);
-            if (eventIdMatch) {
-                data['event_id'] = eventIdMatch[1];
-            }
+            if (eventIdMatch) data['event_id'] = eventIdMatch[1];
         }
         
-        // LIBELLÉ DU CLIC (texte visible)
-        const text = element.textContent?.trim();
-        if (text && text.length > 0 && text.length < 100) {
-            data['Libellé'] = text.substring(0, 50) + (text.length > 50 ? '...' : '');
-        } else if (element.getAttribute('aria-label')) {
-            data['Libellé'] = element.getAttribute('aria-label');
-        } else if (element.getAttribute('title')) {
-            data['Libellé'] = element.getAttribute('title');
-        }
-        
-        // PROPRIÉTÉS CUSTOM (attributs data-*)
+        // 3. Attributs data-*
         Array.from(element.attributes).forEach(attr => {
             if (attr.name.startsWith('data-track') || 
-                attr.name.startsWith('data-analytics') ||
                 attr.name.startsWith('data-event')) {
-                const key = attr.name.replace('data-', '').replace(/-/g, '_');
+                const key = attr.name.replace('data-', '');
                 data[key] = attr.value;
             }
         });
         
-        // INFORMATIONS CONTEXTUELLES (Tag Commander)
-        if (window.tc_vars) {
-            // Template de page
-            if (window.tc_vars.env_template && !data['Template']) {
-                data['Template'] = window.tc_vars.env_template;
-            }
-            
-            // Univers produit (si pertinent)
-            if (window.tc_vars.product_category1) {
-                data['Univers'] = window.tc_vars.product_category1;
-            }
-        }
-        
-        // URL de destination (pour les liens)
-        if (href && href !== '#' && !href.startsWith('javascript:') && !href.includes('#dartyclic=')) {
-            try {
-                const url = new URL(href, window.location.href);
-                if (url.pathname !== window.location.pathname) {
-                    data['Destination'] = url.pathname;
-                }
-            } catch (e) {
-                // URL relative ou invalide
-                if (href.length < 80) {
-                    data['Destination'] = href;
-                }
-            }
+        // 4. Libellé
+        const text = element.textContent?.trim();
+        if (text && text.length > 0 && text.length < 80) {
+            data['Libellé'] = text.substring(0, 50);
         }
         
         return data;
     }
 
     // ==========================================
-    // CRÉATION DES BADGES
+    // CRÉATION DU BADGE (unique, réutilisé)
     // ==========================================
-    function createBadge(element, data) {
+    function createBadge() {
         const badge = document.createElement('div');
         badge.className = 'aa-overlay-badge';
-        
-        // Appliquer un style différent selon le type
-        if (data['Type'] && data['Type'].includes('dartyclic')) {
-            badge.classList.add('aa-dartyclic-badge');
-        } else if (data['Type'] && data['Type'].includes('interaction')) {
-            badge.classList.add('aa-interaction-badge');
-        }
-        
-        let content = '<div class="aa-overlay-title">📊 Tracking Data</div>';
+        document.body.appendChild(badge);
+        return badge;
+    }
+
+    function updateBadge(badge, element, data) {
+        let content = '<div class="aa-overlay-title">📊 Analytics Data</div>';
         
         if (Object.keys(data).length === 0) {
             content += '<div class="aa-overlay-item">';
-            content += '<span class="aa-overlay-value" style="opacity: 0.6;">Aucune donnée détectée</span>';
+            content += '<span class="aa-overlay-value" style="opacity:0.6;">Aucune donnée</span>';
             content += '</div>';
         } else {
-            // Ordre de priorité pour l'affichage
             const priorityKeys = ['Type', 'Clic', 'event_id', 'Libellé', 'Page'];
-            const displayedKeys = new Set();
+            let count = 0;
             
-            // Afficher les clés prioritaires en premier
             priorityKeys.forEach(key => {
-                if (data[key]) {
+                if (data[key] && count < 5) {
                     content += '<div class="aa-overlay-item">';
                     content += `<span class="aa-overlay-key">${key}:</span>`;
                     content += `<span class="aa-overlay-value">${data[key]}</span>`;
                     content += '</div>';
-                    displayedKeys.add(key);
+                    count++;
                 }
             });
             
-            // Afficher les autres clés (max 5 au total)
-            let count = displayedKeys.size;
+            // Autres clés
             for (const [key, value] of Object.entries(data)) {
-                if (!displayedKeys.has(key) && count < 5) {
+                if (!priorityKeys.includes(key) && count < 5) {
                     content += '<div class="aa-overlay-item">';
                     content += `<span class="aa-overlay-key">${key}:</span>`;
                     content += `<span class="aa-overlay-value">${value}</span>`;
@@ -313,35 +272,23 @@
         }
         
         badge.innerHTML = content;
-        document.body.appendChild(badge);
-        
-        // Animation d'apparition
-        setTimeout(() => badge.classList.add('visible'), 10);
-        
-        return badge;
     }
 
-    // ==========================================
-    // POSITIONNEMENT DES BADGES
-    // ==========================================
-    function positionBadge(element, badge) {
+    function positionBadge(badge, element) {
         const rect = element.getBoundingClientRect();
-        const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
-        const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft;
-        
-        let top = scrollTop + rect.bottom + 10;
-        let left = scrollLeft + rect.left;
-        
-        // Éviter que le badge sorte de l'écran
         const badgeRect = badge.getBoundingClientRect();
-        const windowWidth = window.innerWidth;
         
-        if (left + badgeRect.width > windowWidth - 20) {
-            left = windowWidth - badgeRect.width - 20;
+        let top = rect.bottom + 12;
+        let left = rect.left;
+        
+        // Éviter sortie d'écran
+        if (left + badgeRect.width > window.innerWidth - 20) {
+            left = window.innerWidth - badgeRect.width - 20;
         }
+        if (left < 10) left = 10;
         
-        if (left < 10) {
-            left = 10;
+        if (top + badgeRect.height > window.innerHeight - 20) {
+            top = rect.top - badgeRect.height - 12;
         }
         
         badge.style.top = top + 'px';
@@ -349,36 +296,47 @@
     }
 
     // ==========================================
-    // SCAN DES ÉLÉMENTS TRACKÉS
+    // GESTION DU HOVER
+    // ==========================================
+    function handleMouseEnter(event) {
+        if (!isActive) return;
+        
+        const element = event.currentTarget;
+        const data = getTrackingData(element);
+        
+        if (!currentBadge) {
+            currentBadge = createBadge();
+        }
+        
+        updateBadge(currentBadge, element, data);
+        positionBadge(currentBadge, element);
+        
+        requestAnimationFrame(() => {
+            currentBadge.classList.add('visible');
+        });
+    }
+
+    function handleMouseLeave() {
+        if (currentBadge) {
+            currentBadge.classList.remove('visible');
+        }
+    }
+
+    // ==========================================
+    // SCAN DES ÉLÉMENTS
     // ==========================================
     function scanElements() {
         const selectors = [
-            // Dartyclic (liens avec ancre #dartyclic=)
             'a[href*="#dartyclic="]',
-            
-            // Satellite.track
             '[onclick*="_satellite.track"]',
-            
-            // Attributs de tracking custom
             '[data-track]',
-            '[data-tracking]',
-            '[data-analytics]',
             '[data-event]',
-            
-            // Éléments interactifs standards
             'button',
-            'a[href]:not([href="#"]):not([href^="javascript:"])',
+            'a[href]:not([href="#"])',
             '[role="button"]',
-            'input[type="submit"]',
-            'input[type="button"]',
-            
-            // CTA et éléments Darty typiques
             '.cta',
             '[class*="btn"]',
-            '[class*="button"]',
-            'nav a',
-            '.menu-item',
-            '[class*="banner"]'
+            'nav a'
         ];
 
         const elements = document.querySelectorAll(selectors.join(','));
@@ -386,46 +344,41 @@
         elements.forEach(element => {
             if (trackedElements.has(element)) return;
             
-            const data = getKeyTrackingData(element);
+            const data = getTrackingData(element);
+            const hasData = Object.keys(data).length > 1;
             
-            // Ne marquer que les éléments avec données pertinentes
-            const hasTrackingData = data['Type'] || data['Clic'] || data['event_id'] || 
-                                    Object.keys(data).length > 1;
-            
-            if (hasTrackingData) {
+            if (hasData) {
                 element.classList.add('aa-tracked-element');
+                
+                // Classe spéciale selon le type
+                if (data['Type']?.includes('dartyclic')) {
+                    element.classList.add('aa-dartyclic');
+                } else if (data['Type']?.includes('interaction')) {
+                    element.classList.add('aa-interaction');
+                }
+                
                 trackedElements.add(element);
                 
-                const badge = createBadge(element, data);
-                badges.set(element, badge);
-                
-                // Position initiale
-                positionBadge(element, badge);
-                
-                // Mettre à jour la position au scroll/resize
-                const updatePosition = () => {
-                    if (badge.parentNode && badge.classList.contains('visible')) {
-                        positionBadge(element, badge);
-                    }
-                };
-                
-                window.addEventListener('scroll', updatePosition, { passive: true });
-                window.addEventListener('resize', updatePosition);
+                element.addEventListener('mouseenter', handleMouseEnter);
+                element.addEventListener('mouseleave', handleMouseLeave);
             }
         });
         
-        updateToggleButton();
+        updateCount();
     }
 
     // ==========================================
-    // TOGGLE OVERLAY
+    // TOGGLE
     // ==========================================
-    function toggleOverlay() {
+    function toggle() {
         isActive = !isActive;
         
-        badges.forEach(badge => {
-            badge.style.display = isActive ? 'block' : 'none';
-        });
+        switchElement.classList.toggle('active', isActive);
+        labelElement.classList.toggle('active', isActive);
+        
+        if (!isActive && currentBadge) {
+            currentBadge.classList.remove('visible');
+        }
         
         trackedElements.forEach(element => {
             if (isActive) {
@@ -434,60 +387,74 @@
                 element.classList.remove('aa-tracked-element');
             }
         });
-        
-        updateToggleButton();
+    }
+
+    function updateCount() {
+        countBadge.textContent = trackedElements.size;
     }
 
     // ==========================================
-    // BOUTON TOGGLE
+    // UI - SWITCH
     // ==========================================
-    function updateToggleButton() {
-        const count = trackedElements.size;
-        toggleButton.innerHTML = isActive 
-            ? ` Overlay: ON <span class="aa-overlay-count">${count}</span>`
-            : ` Overlay: OFF <span class="aa-overlay-count">${count}</span>`;
-    }
-
-    const toggleButton = document.createElement('button');
-    toggleButton.className = 'aa-overlay-toggle';
-    toggleButton.addEventListener('click', toggleOverlay);
-    document.body.appendChild(toggleButton);
+    const container = document.createElement('div');
+    container.className = 'aa-switch-container';
+    
+    const labelElement = document.createElement('span');
+    labelElement.className = 'aa-switch-label active';
+    labelElement.textContent = 'Overlay';
+    
+    const switchElement = document.createElement('div');
+    switchElement.className = 'aa-switch active';
+    switchElement.innerHTML = '<div class="aa-switch-slider"></div>';
+    switchElement.addEventListener('click', toggle);
+    
+    const countBadge = document.createElement('span');
+    countBadge.className = 'aa-count-badge';
+    countBadge.textContent = '0';
+    
+    container.appendChild(labelElement);
+    container.appendChild(switchElement);
+    container.appendChild(countBadge);
+    document.body.appendChild(container);
 
     // ==========================================
     // INITIALISATION
     // ==========================================
-    
-    // Scanner au chargement
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', scanElements);
     } else {
         scanElements();
     }
 
-    // Re-scanner si le DOM change (pour SPA/AJAX)
-    const observer = new MutationObserver(() => {
-        scanElements();
-    });
-    
-    observer.observe(document.body, {
-        childList: true,
-        subtree: true
-    });
+    // Observer DOM
+    const observer = new MutationObserver(() => scanElements());
+    observer.observe(document.body, { childList: true, subtree: true });
 
-    // API publique
+    // Repositionner au scroll
+    let scrollTimeout;
+    window.addEventListener('scroll', () => {
+        if (currentBadge && currentBadge.classList.contains('visible')) {
+            clearTimeout(scrollTimeout);
+            scrollTimeout = setTimeout(() => {
+                const hoveredElement = document.querySelector('.aa-tracked-element:hover');
+                if (hoveredElement) {
+                    positionBadge(currentBadge, hoveredElement);
+                }
+            }, 50);
+        }
+    }, { passive: true });
+
+    // API
     window.AdobeAnalyticsOverlay = {
-        toggle: toggleOverlay,
+        toggle,
         scan: scanElements,
         isActive: () => isActive,
-        getTrackedCount: () => trackedElements.size
+        getCount: () => trackedElements.size
     };
 
-    // Log de démarrage
-    console.log('%c Adobe Analytics Overlay activé', 
-                'background: #E31E24; color: white; padding: 8px 16px; border-radius: 4px; font-weight: bold;');
-    console.log(' Tag Commander détecté:', !!window.tc_vars);
-    console.log(' Adobe Launch détecté:', !!window._satellite);
-    console.log(' Variables tc_vars:', window.tc_vars);
+    console.log('%cAdobe Analytics Overlay activé', 
+                'background: #E31E24; color: white; padding: 6px 12px; border-radius: 4px; font-weight: bold;');
+    console.log('Tag Commander:', !!window.tc_vars);
+    console.log('Adobe Launch:', !!window._satellite);
 
 })();
-
